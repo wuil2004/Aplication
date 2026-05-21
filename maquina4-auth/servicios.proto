@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package sistema;
+
+// ==========================================
+// MÁQUINA 4: MICROSERVICIO DE AUTENTICACIÓN
+// ==========================================
+service AuthService {
+  // Recibe correo/pass y devuelve el token JWT
+  rpc Login (LoginRequest) returns (LoginResponse) {}
+  
+  // Recibe los datos y devuelve si se creó con éxito
+  rpc Registro (RegistroRequest) returns (RegistroResponse) {}
+}
+
+message LoginRequest {
+  string correo = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  bool exito = 1;
+  string token = 2; // Aquí irá el JWT con el rol
+  string mensaje = 3;
+}
+
+message RegistroRequest {
+  string nombre = 1;
+  string correo = 2;
+  string password = 3;
+  string rol = 4; // "alumno" o "docente"
+  string codigo_secreto = 5; // Solo se lee si el rol es docente
+}
+
+message RegistroResponse {
+  bool exito = 1;
+  string mensaje = 2;
+}
+
+
+// ==========================================
+// MÁQUINA 3: MICROSERVICIO DE SALAS (Lógica)
+// ==========================================
+service SalasService {
+  // El Gateway le pide crear una sala y este le devuelve el código
+  rpc CrearSala (CrearSalaRequest) returns (SalaResponse) {}
+  
+  // Para que el alumno entre a la sala con un código
+  rpc UnirseSala (UnirseRequest) returns (UnirseResponse) {}
+  
+  // Para que el docente presione "Crear Equipos" y se ejecute el algoritmo
+  rpc GenerarEquipos (GenerarEquiposRequest) returns (GenerarEquiposResponse) {}
+}
+
+message CrearSalaRequest {
+  int32 max_alumnos_por_equipo = 1;
+  string token_docente = 2; // Para verificar que sí es un docente
+}
+
+message SalaResponse {
+  bool exito = 1;
+  string codigo_sala = 2; // Ej: "SALA-XYZ"
+  string mensaje = 3;
+}
+
+message UnirseRequest {
+  string codigo_sala = 1;
+  string token_alumno = 2; // Para saber quién es el alumno que se está uniendo
+}
+
+message UnirseResponse {
+  bool exito = 1;
+  string mensaje = 2;
+}
+
+message GenerarEquiposRequest {
+  string codigo_sala = 1;
+  string token_docente = 2; // Solo el docente dueño de la sala puede iniciar el algoritmo
+}
+
+message GenerarEquiposResponse {
+  bool exito = 1;
+  string mensaje = 2;
+}
