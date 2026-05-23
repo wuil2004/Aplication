@@ -8,7 +8,7 @@ const proto = grpc.loadPackageDefinition(packageDefinition).sistema;
 const JWT_SECRET = 'mi_super_secreto_123';
 const salasDB = {};
 
-// 1. Crear Sala (Ya la tenías)
+// 1. Crear Sala
 function CrearSala(call, callback) {
     const { max_alumnos_por_equipo, token_docente } = call.request;
     try {
@@ -20,14 +20,15 @@ function CrearSala(call, callback) {
         const codigo_sala = 'SALA-' + Math.random().toString(36).substring(2, 6).toUpperCase();
         salasDB[codigo_sala] = {
             docente: decodificado.nombre,
-            max_alumnos_por_equipo: max_alumnos_por_equipo,
+            max_alumnos_por_equipo: max_alumnos_por_equipo || 3, // Por si no llega el número, ponemos 3 por defecto
             alumnos_conectados: [], 
             equipos: [] 
         };
 
-        console.log(`🏫 Sala ${codigo_sala} creada por ${decodificado.nombre}. Max: ${max_alumnos_por_equipo}`);
+        console.log(`🏫 Sala ${codigo_sala} creada por ${decodificado.nombre}. Max: ${salasDB[codigo_sala].max_alumnos_por_equipo}`);
         callback(null, { exito: true, codigo_sala: codigo_sala, mensaje: 'Sala creada' });
     } catch (error) {
+        console.error("❌ Error en CrearSala: Token inválido");
         callback(null, { exito: false, codigo_sala: '', mensaje: 'Token inválido' });
     }
 }
@@ -35,6 +36,13 @@ function CrearSala(call, callback) {
 // 2. Unirse a la Sala (Para alumnos)
 function UnirseSala(call, callback) {
     const { codigo_sala, token_alumno } = call.request;
+    
+    // Filtro de seguridad: Avisar si el Gateway no mandó el token
+    if (!token_alumno) {
+        console.error(`❌ Alerta: El Gateway intentó meter a un alumno a la ${codigo_sala} pero no envió el token_alumno.`);
+        return callback(null, { exito: false, mensaje: 'El token está vacío' });
+    }
+
     try {
         const decodificado = jwt.verify(token_alumno, JWT_SECRET);
         
@@ -55,6 +63,7 @@ function UnirseSala(call, callback) {
         console.log(`👨‍🎓 Alumno ${decodificado.nombre} entró a la ${codigo_sala}`);
         callback(null, { exito: true, mensaje: 'Te has unido exitosamente' });
     } catch (error) {
+        console.error(`❌ Rechazado: El token del alumno rebotó al intentar entrar a ${codigo_sala}`);
         callback(null, { exito: false, mensaje: 'Token inválido' });
     }
 }
@@ -62,11 +71,15 @@ function UnirseSala(call, callback) {
 // 3. El Algoritmo: Generar Equipos Equitativos
 function GenerarEquipos(call, callback) {
     const { codigo_sala, token_docente } = call.request;
+    
+    if (!token_docente) {
+        return callback(null, { exito: false, mensaje: 'El token del docente está vacío' });
+    }
+
     try {
         const decodificado = jwt.verify(token_docente, JWT_SECRET);
         const sala = salasDB[codigo_sala];
 
-        // Validar que la sala exista y que este profe sea el dueño
         if (!sala || sala.docente !== decodificado.nombre) {
             return callback(null, { exito: false, mensaje: 'No tienes permiso para generar equipos aquí' });
         }
@@ -79,36 +92,35 @@ function GenerarEquipos(call, callback) {
             return callback(null, { exito: false, mensaje: 'No hay alumnos para repartir' });
         }
 
-        // A. Mezclar a los alumnos al azar (Si quieres que sea por orden de llegada, borra esta línea)
+        // A. Mezclar a los alumnos al azar
         const alumnosMezclados = [...alumnos].sort(() => Math.random() - 0.5);
 
         // B. Calcular cuántos equipos se necesitan
         const num_equipos = Math.ceil(total / max);
 
-        // C. Crear los equipos vacíos (un arreglo de arreglos)
+        // C. Crear los equipos vacíos
         const equipos = Array.from({ length: num_equipos }, () => []);
 
-        // D. Repartir como baraja de cartas usando el residuo (módulo)
+        // D. Repartir como baraja de cartas
         alumnosMezclados.forEach((alumno, index) => {
             const numeroDeEquipo = index % num_equipos;
             equipos[numeroDeEquipo].push(alumno);
         });
 
-        // Guardar en la "base de datos"
         sala.equipos = equipos;
         
         console.log(`✅ Equipos equitativos generados en ${codigo_sala}:`);
-        console.dir(equipos, { depth: null }); // Para verlo bonito en la terminal
+        console.dir(equipos, { depth: null }); 
 
         callback(null, { exito: true, mensaje: 'Equipos armados correctamente' });
     } catch (error) {
+        console.error("❌ Error en GenerarEquipos: Token inválido");
         callback(null, { exito: false, mensaje: 'Token inválido' });
     }
 }
 
 // 4. Encender Servidor
 const server = new grpc.Server();
-// Aquí registramos las TRES funciones
 server.addService(proto.SalasService.service, { CrearSala, UnirseSala, GenerarEquipos });
 
 server.bindAsync('0.0.0.0:50052', grpc.ServerCredentials.createInsecure(), (error, port) => {

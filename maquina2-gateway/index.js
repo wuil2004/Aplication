@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
+const jwt = require('jsonwebtoken'); // <-- NUEVO: Para abrir los gafetes
 
 // 1. Nuevas importaciones para WebSockets
 const http = require('http');
@@ -10,6 +11,9 @@ const { Server } = require('socket.io');
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Secreto para leer el JWT (Debe ser el mismo que usas en Máquina 4)
+const JWT_SECRET = 'mi_super_secreto_123';
 
 // 2. Configurar el servidor HTTP y Socket.io
 const servidorHttp = http.createServer(app);
@@ -27,17 +31,23 @@ io.on('connection', (socket) => {
         console.log(`📱 Pantalla unida al canal de tiempo real: ${codigo_sala}`);
     });
 
+    // Nuevo: Escuchamos cuando el Profe avisa que ya revolvió los equipos aleatoriamente
+    socket.on('equipos_generados', (data) => {
+        // Le avisamos a todos los alumnos de esa sala
+        io.to(data.sala).emit('equipos_listos', { mensaje: data.mensaje });
+    });
+
     socket.on('disconnect', () => {
         console.log('🔌 Navegador desconectado');
     });
 });
 
-
 const packageDefinition = protoLoader.loadSync('./servicios.proto', { keepCase: true });
 const proto = grpc.loadPackageDefinition(packageDefinition).sistema;
 
-const authClient = new proto.AuthService('localhost:50051', grpc.credentials.createInsecure());
-const salasClient = new proto.SalasService('localhost:50052', grpc.credentials.createInsecure());
+// Conexiones a tus otras máquinas físicas
+const authClient = new proto.AuthService('192.168.50.50:50051', grpc.credentials.createInsecure());
+const salasClient = new proto.SalasService('192.168.50.20:50052', grpc.credentials.createInsecure());
 
 // --- RUTAS HTTP --- (Registro, Login y Crear Sala quedan igual)
 app.post('/api/registro', (req, res) => {
@@ -56,25 +66,36 @@ app.post('/api/crear-sala', (req, res) => {
 // --- LA MAGIA: RUTAS CON AVISO EN TIEMPO REAL ---
 
 app.post('/api/unirse-sala', (req, res) => {
-    salasClient.UnirseSala(req.body, (error, respuesta) => {
-        if (error) return res.status(500).json({ exito: false, mensaje: 'Error interno' });
-        
-        // Si la Máquina 3 dice que el alumno se unió bien, ¡Avisamos por WebSockets!
-        if (respuesta.exito) {
-            io.to(req.body.codigo_sala).emit('actualizacion_alumnos', {
-                mensaje: 'Un nuevo alumno acaba de entrar'
-            });
-        }
-        
-        res.json(respuesta);
-    });
+    const { codigo_sala, token_alumno } = req.body;
+
+    // --- LUPA DE DEBUGGING ---
+    console.log("\n--- ALUMNO INTENTANDO UNIRSE ---");
+    console.log("Código de sala:", codigo_sala);
+    console.log("Token recibido:", token_alumno);
+
+    try {
+        const decodificado = jwt.verify(token_alumno, JWT_SECRET);
+        console.log("✅ Token abierto con éxito. Alumno:", decodificado.nombre);
+
+        salasClient.UnirseSala({ codigo_sala: codigo_sala, token_alumno: token_alumno }, (error, respuesta) => {
+            if (error || !respuesta.exito) {
+                return res.json({ exito: false, mensaje: respuesta ? respuesta.mensaje : 'Error en salas' });
+            }
+
+            io.to(codigo_sala).emit('alumno_unido', { nombre: decodificado.nombre });
+            res.json(respuesta);
+        });
+    } catch (error) {
+        console.error("❌ El token explotó por esta razón:", error.message);
+        res.json({ exito: false, mensaje: 'Token inválido o expirado' });
+    }
 });
 
 app.post('/api/generar-equipos', (req, res) => {
     salasClient.GenerarEquipos(req.body, (error, respuesta) => {
         if (error) return res.status(500).json({ exito: false, mensaje: 'Error interno' });
         
-        // Si el algoritmo terminó con éxito, ¡Avisamos a todos que ya hay equipos!
+        // Esta ruta queda por si en el futuro generas equipos desde el backend (Máquina 3)
         if (respuesta.exito) {
             io.to(req.body.codigo_sala).emit('equipos_listos', {
                 mensaje: '¡Los equipos han sido generados!'
@@ -85,7 +106,7 @@ app.post('/api/generar-equipos', (req, res) => {
     });
 });
 
-// ¡OJO! Ahora encendemos "servidorHttp", no "app"
-servidorHttp.listen(3000, () => {
-    console.log('🌐 API Gateway + WebSockets listos en http://localhost:3000');
+// ¡OJO! Ahora escuchamos en '0.0.0.0' para aceptar peticiones de toda la red
+servidorHttp.listen(3000, '0.0.0.0', () => {
+    console.log('🌐 API Gateway + WebSockets listos en toda la red local por el puerto 3000');
 });

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { io } from 'socket.io-client'
 
-const socket = io('http://localhost:3000', { autoConnect: false })
+const socket = io('http://192.168.50.214:3000', { autoConnect: false })
 
 export default function Alumno() {
   const [codigoSala, setCodigoSala] = useState('')
@@ -39,7 +39,7 @@ export default function Alumno() {
     
     try {
       // El alumno intenta unirse enviando el código y su propio token
-      const res = await axios.post('http://localhost:3000/api/unirse-sala', { 
+      const res = await axios.post('http://192.168.50.214:3000/api/unirse-sala', { 
         codigo_sala: codigoSala.toUpperCase(), 
         token_alumno: token 
       })

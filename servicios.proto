@@ -37,7 +37,6 @@ message RegistroResponse {
   string mensaje = 2;
 }
 
-
 // ==========================================
 // MÁQUINA 3: MICROSERVICIO DE SALAS (Lógica)
 // ==========================================
@@ -50,6 +49,9 @@ service SalasService {
   
   // Para que el docente presione "Crear Equipos" y se ejecute el algoritmo
   rpc GenerarEquipos (GenerarEquiposRequest) returns (GenerarEquiposResponse) {}
+
+  // NUEVO: Para pedir el historial de salas de un profe
+  rpc ObtenerMisSalas (ObtenerSalasRequest) returns (ObtenerSalasResponse) {}
 }
 
 message CrearSalaRequest {
@@ -81,4 +83,25 @@ message GenerarEquiposRequest {
 message GenerarEquiposResponse {
   bool exito = 1;
   string mensaje = 2;
+}
+
+// --- NUEVOS MENSAJES PARA EL HISTORIAL DE SALAS ---
+
+message ObtenerSalasRequest {
+  string token_docente = 1; // Necesitamos saber qué profe está pidiendo su lista
+}
+
+// Este mensaje representa UNA sola sala en la lista
+// Este mensaje representa UNA sola sala en la lista
+message SalaInfo {
+  string codigo_sala = 1;
+  int32 max_alumnos_por_equipo = 2;
+  repeated string alumnos = 3; // NUEVO: La lista de nombres
+  string equipos_json = 4;     // NUEVO: Un truco para mandar los equipos comprimidos
+}
+
+message ObtenerSalasResponse {
+  bool exito = 1;
+  string mensaje = 2;
+  repeated SalaInfo salas = 3; // "repeated" significa que es un arreglo (lista) de salas
 }

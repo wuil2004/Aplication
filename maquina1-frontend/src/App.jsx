@@ -1,7 +1,9 @@
+// src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './Login'
+import Registro from './Registro' // <-- 1. Importamos el Registro
 import Docente from './Docente'
-import Alumno from './Alumno' // <-- Importamos el componente real
+import Alumno from './Alumno'
 
 function App() {
   return (
@@ -9,8 +11,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/registro" element={<Registro />} /> {/* <-- 2. Agregamos la ruta */}
         <Route path="/docente" element={<Docente />} />
-        <Route path="/alumno" element={<Alumno />} /> {/* <-- Lo conectamos aquí */}
+        <Route path="/alumno" element={<Alumno />} />
       </Routes>
     </BrowserRouter>
   )

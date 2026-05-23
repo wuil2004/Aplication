@@ -17,7 +17,8 @@ export default function Login() {
     setError('')
 
     try {
-      const res = await axios.post('http://localhost:3000/api/login', { 
+      // Tu IP real ya está configurada aquí
+      const res = await axios.post('http://192.168.50.214:3000/api/login', { 
         correo: correo, 
         password: password 
       })
@@ -80,6 +81,17 @@ export default function Login() {
           Entrar
         </button>
       </form>
+
+      {/* Aquí está el bloque nuevo que agregamos para ir al Registro */}
+      <div style={{ marginTop: '30px', textAlign: 'center', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+        <p style={{ color: '#666', marginBottom: '10px' }}>¿No tienes cuenta?</p>
+        <button 
+          onClick={() => navigate('/registro')} 
+          style={{ background: 'transparent', color: '#007bff', border: '1px solid #007bff', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', width: '100%' }}
+        >
+          Crear una cuenta nueva
+        </button>
+      </div>
     </div>
   )
 }
