@@ -6,10 +6,7 @@ package sistema;
 // MÁQUINA 4: MICROSERVICIO DE AUTENTICACIÓN
 // ==========================================
 service AuthService {
-  // Recibe correo/pass y devuelve el token JWT
   rpc Login (LoginRequest) returns (LoginResponse) {}
-  
-  // Recibe los datos y devuelve si se creó con éxito
   rpc Registro (RegistroRequest) returns (RegistroResponse) {}
 }
 
@@ -20,7 +17,7 @@ message LoginRequest {
 
 message LoginResponse {
   bool exito = 1;
-  string token = 2; // Aquí irá el JWT con el rol
+  string token = 2;
   string mensaje = 3;
 }
 
@@ -28,8 +25,8 @@ message RegistroRequest {
   string nombre = 1;
   string correo = 2;
   string password = 3;
-  string rol = 4; // "alumno" o "docente"
-  string codigo_secreto = 5; // Solo se lee si el rol es docente
+  string rol = 4;
+  string codigo_secreto = 5;
 }
 
 message RegistroResponse {
@@ -41,39 +38,34 @@ message RegistroResponse {
 // MÁQUINA 3: MICROSERVICIO DE SALAS (Lógica)
 // ==========================================
 service SalasService {
-  // El Gateway le pide crear una sala y este le devuelve el código
   rpc CrearSala (CrearSalaRequest) returns (SalaResponse) {}
-  
-  // Para que el alumno entre a la sala con un código
   rpc UnirseSala (UnirseRequest) returns (UnirseResponse) {}
-  
-  // Para que el docente presione "Crear Equipos" y se ejecute el algoritmo
   rpc GenerarEquipos (GenerarEquiposRequest) returns (GenerarEquiposResponse) {}
-
-  // Para pedir el historial de salas de un profe
   rpc ObtenerMisSalas (ObtenerSalasRequest) returns (ObtenerSalasResponse) {}
-
-  // ¡NUEVO!: Para que el alumno pida las salas en las que ya está inscrito
   rpc ObtenerSalasAlumno (ObtenerSalasAlumnoRequest) returns (ObtenerSalasResponse) {}
-
-  // Para que el profe elimine una sala de la base de datos
   rpc EliminarSala (EliminarSalaRequest) returns (EliminarSalaResponse) {}
+  
+  // ¡NUEVO!: Para consultar alumnos en tiempo real
+  rpc ObtenerAlumnosSala (ObtenerAlumnosSalaRequest) returns (ObtenerAlumnosSalaResponse) {}
+  
+  // ¡NUEVO!: Para guardar la foto de los equipos en BD
+  rpc GuardarEquipos (GuardarEquiposRequest) returns (GuardarEquiposResponse) {}
 }
 
 message CrearSalaRequest {
   int32 max_alumnos_por_equipo = 1;
-  string token_docente = 2; // Para verificar que sí es un docente
+  string token_docente = 2;
 }
 
 message SalaResponse {
   bool exito = 1;
-  string codigo_sala = 2; // Ej: "SALA-XYZ"
+  string codigo_sala = 2;
   string mensaje = 3;
 }
 
 message UnirseRequest {
   string codigo_sala = 1;
-  string token_alumno = 2; // Para saber quién es el alumno que se está uniendo
+  string token_alumno = 2;
 }
 
 message UnirseResponse {
@@ -83,7 +75,7 @@ message UnirseResponse {
 
 message GenerarEquiposRequest {
   string codigo_sala = 1;
-  string token_docente = 2; // Solo el docente dueño de la sala puede iniciar el algoritmo
+  string token_docente = 2;
 }
 
 message GenerarEquiposResponse {
@@ -91,37 +83,55 @@ message GenerarEquiposResponse {
   string mensaje = 2;
 }
 
-// --- NUEVOS MENSAJES PARA EL HISTORIAL DE SALAS ---
-
 message ObtenerSalasRequest {
-  string token_docente = 1; // Necesitamos saber qué profe está pidiendo su lista
+  string token_docente = 1;
 }
 
-// ¡NUEVO!: Mensaje para que el alumno pida su historial
 message ObtenerSalasAlumnoRequest {
   string token_alumno = 1; 
 }
 
-// Este mensaje representa UNA sola sala en la lista
 message SalaInfo {
   string codigo_sala = 1;
   int32 max_alumnos_por_equipo = 2;
-  repeated string alumnos = 3; // La lista de nombres
-  string equipos_json = 4;     // Un truco para mandar los equipos comprimidos
+  repeated string alumnos = 3;
+  string equipos_json = 4;
 }
 
 message ObtenerSalasResponse {
   bool exito = 1;
   string mensaje = 2;
-  repeated SalaInfo salas = 3; // "repeated" significa que es un arreglo (lista) de salas
+  repeated SalaInfo salas = 3;
 }
 
 message EliminarSalaRequest {
   string codigo_sala = 1;
-  string token_docente = 2; // Para asegurar que solo el profe dueño pueda borrarla
+  string token_docente = 2;
 }
 
 message EliminarSalaResponse {
+  bool exito = 1;
+  string mensaje = 2;
+}
+
+// --- NUEVOS MENSAJES ---
+
+message ObtenerAlumnosSalaRequest {
+  string codigo_sala = 1;
+}
+
+message ObtenerAlumnosSalaResponse {
+  bool exito = 1;
+  repeated string alumnos = 2;
+}
+
+message GuardarEquiposRequest {
+  string codigo_sala = 1;
+  string token_docente = 2;
+  string equipos_json = 3;
+}
+
+message GuardarEquiposResponse {
   bool exito = 1;
   string mensaje = 2;
 }

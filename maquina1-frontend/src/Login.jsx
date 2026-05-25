@@ -4,93 +4,78 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { jwtDecode } from 'jwt-decode'
 
+const styles = {
+  page: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f4fb', padding: '24px' },
+  card: { background: 'white', border: '0.5px solid #e0dff0', borderRadius: '16px', padding: '36px 32px', width: '100%', maxWidth: '380px', boxSizing: 'border-box' },
+  brandWrap: { display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', marginBottom: '8px' },
+  brandIcon: { width: '40px', height: '40px', background: '#534AB7', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' },
+  brandName: { fontSize: '18px', fontWeight: '500' },
+  sub: { fontSize: '13px', color: '#888', textAlign: 'center', marginBottom: '28px' },
+  label: { display: 'block', fontSize: '13px', color: '#555', marginBottom: '6px' },
+  input: { width: '100%', padding: '10px 12px', border: '0.5px solid #d0cfe8', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
+  btnPrimary: { width: '100%', padding: '11px', background: '#534AB7', color: '#EEEDFE', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', marginTop: '8px' },
+  btnOutline: { width: '100%', padding: '10px', background: 'transparent', color: '#534AB7', border: '0.5px solid #534AB7', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', marginTop: '10px' },
+  divider: { display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' },
+  dividerLine: { flex: 1, border: 'none', borderTop: '0.5px solid #eee' },
+  dividerText: { fontSize: '12px', color: '#aaa' },
+  error: { background: '#fff0f0', border: '0.5px solid #ffcccc', color: '#c0392b', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' },
+  fieldGroup: { marginBottom: '16px' },
+}
+
 export default function Login() {
   const [correo, setCorreo] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  
-  // Herramienta de React Router para cambiar de pantalla
   const navigate = useNavigate()
 
   const manejarLogin = async (e) => {
-    e.preventDefault() // Evita que la página se recargue al enviar el formulario
+    e.preventDefault()
     setError('')
-
     try {
-      // Tu IP real ya está configurada aquí
-      const res = await axios.post('http://192.168.0.103:3000/api/login', { 
-        correo: correo, 
-        password: password 
-      })
-      
+      const res = await axios.post('http://192.168.0.103:3000/api/login', { correo, password })
       if (res.data.exito) {
         const token = res.data.token
-        
-        // 1. Guardamos el token en el navegador (LocalStorage)
         localStorage.setItem('token', token)
-        
-        // 2. Leemos qué dice adentro el token usando jwt-decode
         const decodificado = jwtDecode(token)
-        console.log("Token decodificado:", decodificado)
-        
-        // 3. ¡La Redirección Inteligente!
-        if (decodificado.rol === 'docente') {
-          navigate('/docente')
-        } else if (decodificado.rol === 'alumno') {
-          navigate('/alumno')
-        }
+        if (decodificado.rol === 'docente') navigate('/docente')
+        else if (decodificado.rol === 'alumno') navigate('/alumno')
       } else {
         setError(res.data.mensaje)
       }
     } catch (err) {
-      console.error(err)
-      setError('Error al conectar con el servidor. ¿Está prendida la Máquina 2?')
+      setError('Error al conectar con el servidor.')
     }
   }
 
   return (
-    <div style={{ padding: '50px', maxWidth: '400px', margin: '0 auto', fontFamily: 'system-ui' }}>
-      <h2>Iniciar Sesión 🔐</h2>
-      
-      {error && <p style={{ color: 'red', background: '#ffe6e6', padding: '10px', borderRadius: '5px' }}>{error}</p>}
-      
-      <form onSubmit={manejarLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <div>
-          <label>Correo Electrónico:</label>
-          <input 
-            type="email" 
-            value={correo} 
-            onChange={(e) => setCorreo(e.target.value)} 
-            required 
-            style={{ width: '100%', padding: '10px', marginTop: '5px' }}
-          />
+    <div style={styles.page}>
+      <div style={styles.card}>
+        <div style={styles.brandWrap}>
+          <div style={styles.brandIcon}>🏫</div>
+          <span style={styles.brandName}>TeamSync</span>
         </div>
-        
-        <div>
-          <label>Contraseña:</label>
-          <input 
-            type="password" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
-            required 
-            style={{ width: '100%', padding: '10px', marginTop: '5px' }}
-          />
-        </div>
-        
-        <button type="submit" style={{ padding: '10px', background: '#007bff', color: 'white', border: 'none', borderRadius: '5px', fontSize: '16px', cursor: 'pointer' }}>
-          Entrar
-        </button>
-      </form>
+        <p style={styles.sub}>Inicia sesión para continuar</p>
 
-      {/* Aquí está el bloque nuevo que agregamos para ir al Registro */}
-      <div style={{ marginTop: '30px', textAlign: 'center', borderTop: '1px solid #eee', paddingTop: '20px' }}>
-        <p style={{ color: '#666', marginBottom: '10px' }}>¿No tienes cuenta?</p>
-        <button 
-          onClick={() => navigate('/registro')} 
-          style={{ background: 'transparent', color: '#007bff', border: '1px solid #007bff', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', width: '100%' }}
-        >
-          Crear una cuenta nueva
-        </button>
+        {error && <div style={styles.error}>⚠ {error}</div>}
+
+        <form onSubmit={manejarLogin}>
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Correo electrónico</label>
+            <input style={styles.input} type="email" placeholder="tu@correo.com" value={correo} onChange={e => setCorreo(e.target.value)} required />
+          </div>
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Contraseña</label>
+            <input style={styles.input} type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+          </div>
+          <button type="submit" style={styles.btnPrimary}>Entrar</button>
+        </form>
+
+        <div style={styles.divider}>
+          <hr style={styles.dividerLine} />
+          <span style={styles.dividerText}>o</span>
+          <hr style={styles.dividerLine} />
+        </div>
+        <button onClick={() => navigate('/registro')} style={styles.btnOutline}>Crear una cuenta nueva</button>
       </div>
     </div>
   )

@@ -36,7 +36,8 @@ io.on('connection', (socket) => {
     socket.on('equipos_generados', (data) => {
         io.to(data.sala).emit('equipos_listos', { 
             mensaje: data.mensaje,
-            equipos: data.equipos // <-- ¡NUEVO! Pasamos el arreglo de equipos
+            equipos: data.equipos,
+            alumnos: data.alumnos
         });
     });
     socket.on('disconnect', () => {
@@ -64,6 +65,14 @@ app.post('/api/crear-sala', (req, res) => {
     salasClient.CrearSala(req.body, (err, resp) => err ? res.status(500).json({exito:false}) : res.json(resp));
 });
 
+// --- NUEVA RUTA PARA GUARDAR EQUIPOS EN BD ---
+app.post('/api/guardar-equipos', (req, res) => {
+    salasClient.GuardarEquipos(req.body, (error, respuesta) => {
+        if (error) return res.status(500).json({ exito: false });
+        res.json(respuesta);
+    });
+});
+
 // --- NUEVA RUTA PARA PEDIR EL HISTORIAL DE SALAS ---
 app.post('/api/mis-salas', (req, res) => {
     const { token_docente } = req.body;
@@ -78,13 +87,7 @@ app.post('/api/mis-salas', (req, res) => {
     });
 });
 
-// --- NUEVA RUTA PARA ELIMINAR SALA ---
-app.post('/api/eliminar-sala', (req, res) => {
-    salasClient.EliminarSala(req.body, (error, respuesta) => {
-        if (error) return res.status(500).json({ exito: false, mensaje: 'Error interno' });
-        res.json(respuesta);
-    });
-});
+
 
 // --- NUEVA RUTA PARA EL HISTORIAL DEL ALUMNO ---
 app.post('/api/mis-salas-alumno', (req, res) => {

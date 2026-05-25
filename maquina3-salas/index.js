@@ -175,6 +175,28 @@ async function ObtenerSalasAlumno(call, callback) {
     }
 }
 
+// NUEVO: Guardar la foto de los equipos en MongoDB
+async function GuardarEquipos(call, callback) {
+    const { codigo_sala, token_docente, equipos_json } = call.request;
+    try {
+        const decodificado = jwt.verify(token_docente, JWT_SECRET);
+        const sala = await Sala.findOne({ codigo_sala: codigo_sala, docente: decodificado.nombre });
+        
+        if (!sala) return callback(null, { exito: false, mensaje: 'No autorizado' });
+
+        // Convertimos el texto ["juan", "pito"] al formato de Mongo [{nombre: "juan"}, {nombre: "pito"}]
+        const equiposArray = JSON.parse(equipos_json);
+        const equiposMongoose = equiposArray.map(eq => eq.map(nombre => ({ nombre: nombre })));
+
+        sala.equipos = equiposMongoose;
+        await sala.save(); // ¡Guardado en disco duro!
+
+        callback(null, { exito: true, mensaje: 'Guardado exitoso' });
+    } catch (error) {
+        callback(null, { exito: false, mensaje: 'Error guardando' });
+    }
+}
+
 // F. NUEVO: Eliminar Sala
 async function EliminarSala(call, callback) {
     const { codigo_sala, token_docente } = call.request;
@@ -200,6 +222,23 @@ async function EliminarSala(call, callback) {
     }
 }
 
+// G. Obtener estado actual de la sala (para que el alumno que entra tarde se sincronice)
+async function ObtenerEstadoSala(call, callback) {
+    const { codigo_sala } = call.request;
+    try {
+        const sala = await Sala.findOne({ codigo_sala: codigo_sala });
+        if (!sala) return callback(null, { exito: false });
+        
+        callback(null, { 
+            exito: true, 
+            alumnos: sala.alumnos_conectados.map(a => a.nombre),
+            equipos_json: JSON.stringify(sala.equipos || [])
+        });
+    } catch (error) {
+        callback(null, { exito: false });
+    }
+}
+
 // ==========================================
 // ENCENDIDO DEL SERVIDOR
 // ==========================================
@@ -210,7 +249,8 @@ server.addService(proto.SalasService.service, {
     GenerarEquipos, 
     ObtenerMisSalas ,
     ObtenerSalasAlumno , // <-- No olvides registrar la función aquí
-    EliminarSala
+    EliminarSala,
+    GuardarEquipos
 });
 
 server.bindAsync('0.0.0.0:50052', grpc.ServerCredentials.createInsecure(), (error, port) => {

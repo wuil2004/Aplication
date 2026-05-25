@@ -7,289 +7,237 @@ import { jwtDecode } from 'jwt-decode'
 
 const socket = io('http://192.168.0.103:3000', { autoConnect: false })
 
+const color = {
+  purple: '#534AB7', purpleLight: '#EEEDFE', purpleMid: '#AFA9EC',
+  red: '#D85A30', redLight: '#FAECE7',
+  green: '#1D9E75', greenLight: '#E1F5EE',
+  gray: '#f5f4fb', border: '#e0dff0', text: '#333', muted: '#888',
+}
+
+const s = {
+  shell: { minHeight: '100vh', background: color.gray, fontFamily: 'system-ui, sans-serif' },
+  topbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', background: 'white', borderBottom: `0.5px solid ${color.border}` },
+  avatar: (bg, fg) => ({ width: '34px', height: '34px', borderRadius: '50%', background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '500' }),
+  topbarLeft: { display: 'flex', alignItems: 'center', gap: '10px' },
+  topbarName: { fontSize: '14px', fontWeight: '500' },
+  topbarRole: { fontSize: '12px', color: color.muted },
+  btnSmall: { padding: '6px 12px', background: 'transparent', border: `0.5px solid ${color.border}`, borderRadius: '8px', color: color.muted, fontSize: '13px', cursor: 'pointer' },
+  btnDanger: { padding: '6px 12px', background: 'transparent', border: `0.5px solid #ffcccc`, borderRadius: '8px', color: '#c0392b', fontSize: '13px', cursor: 'pointer' },
+  main: { padding: '24px', maxWidth: '960px', margin: '0 auto' },
+  sectionTitle: { fontSize: '16px', fontWeight: '500', marginBottom: '16px' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px', marginBottom: '24px' },
+  salaCard: { background: 'white', border: `0.5px solid ${color.border}`, borderRadius: '12px', padding: '16px' },
+  salaCode: { fontSize: '15px', fontWeight: '500', color: color.purple, marginBottom: '4px' },
+  salaMeta: { fontSize: '12px', color: color.muted, marginBottom: '12px' },
+  salaActions: { display: 'flex', gap: '8px' },
+  btnEnter: { flex: 1, padding: '7px 0', background: color.purple, color: color.purpleLight, border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: '500' },
+  btnDel: { padding: '7px 10px', background: 'transparent', border: `0.5px solid #ffcccc`, color: '#c0392b', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' },
+  newCard: { background: 'white', border: `0.5px dashed ${color.purpleMid}`, borderRadius: '12px', padding: '28px', textAlign: 'center' },
+  newCardText: { fontSize: '13px', color: color.muted, marginBottom: '16px' },
+  btnNew: { padding: '10px 22px', background: color.purple, color: color.purpleLight, border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' },
+  salaHeader: { background: color.purple, padding: '20px 24px', color: color.purpleLight, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  salaHeaderTitle: { fontSize: '13px', opacity: .7, marginBottom: '4px' },
+  salaCodeBig: { fontSize: '28px', fontWeight: '500', letterSpacing: '3px' },
+  salaBody: { display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', padding: '20px 24px', maxWidth: '960px', margin: '0 auto' },
+  panel: { background: 'white', border: `0.5px solid ${color.border}`, borderRadius: '12px', padding: '16px' },
+  panelTitle: { fontSize: '13px', color: color.muted, marginBottom: '12px' },
+  cfgLabel: { fontSize: '12px', color: color.muted, marginBottom: '4px' },
+  cfgInput: { width: '100%', padding: '8px 10px', border: `0.5px solid ${color.border}`, borderRadius: '8px', fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box' },
+  btnRandom: { width: '100%', padding: '10px', background: color.red, color: color.redLight, border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' },
+  alumnoChip: { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: `0.5px solid ${color.border}`, fontSize: '13px' },
+  dot: { width: '6px', height: '6px', borderRadius: '50%', background: color.green, flexShrink: 0 },
+  equiposGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' },
+  equipoCard: (accent) => ({ background: '#fafafa', border: `0.5px solid ${color.border}`, borderRadius: '8px', padding: '12px', borderLeft: `3px solid ${accent}` }),
+  equipoNum: (c) => ({ fontSize: '11px', color: c, fontWeight: '500', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '.5px' }),
+  equipoMember: { fontSize: '12px', color: color.text, padding: '2px 0' },
+}
+
+const COLORES_EQUIPO = [color.purple, color.green, color.red, '#D4537E', '#378ADD']
+
 export default function Docente() {
   const [codigoSala, setCodigoSala] = useState('')
-  const [alumnos, setAlumnos] = useState([]) 
-  const [equipos, setEquipos] = useState([]) 
-  const [tamanioEquipo, setTamanioEquipo] = useState(3) 
-  const [misSalas, setMisSalas] = useState([]) 
-  const [miNombre, setMiNombre] = useState('') 
-  
+  const [alumnos, setAlumnos] = useState([])
+  const [equipos, setEquipos] = useState([])
+  const [tamanioEquipo, setTamanioEquipo] = useState(3)
+  const [misSalas, setMisSalas] = useState([])
+  const [miNombre, setMiNombre] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
     const token = localStorage.getItem('token')
-    if (!token) {
-      navigate('/login')
-      return
-    }
-
+    if (!token) { navigate('/login'); return }
     const decodificado = jwtDecode(token)
     setMiNombre(decodificado.nombre)
-
     socket.connect()
     cargarMisSalas(token)
-
+    
     socket.on('alumno_unido', (data) => {
-      setAlumnos((prevAlumnos) => {
-        if (prevAlumnos.includes(data.nombre)) return prevAlumnos;
-        return [...prevAlumnos, data.nombre]
-      })
+      // Al recibir un nuevo alumno, el profe actualiza su estado. 
+      // El useEffect de abajo se dispara y re-transmite la lista a todos.
+      setAlumnos(prev => prev.includes(data.nombre) ? prev : [...prev, data.nombre])
     })
-
-    return () => {
-      socket.off('alumno_unido')
-      socket.disconnect()
-    }
+    
+    return () => { socket.off('alumno_unido'); socket.disconnect() }
   }, [navigate])
 
   const cargarMisSalas = async (token) => {
     try {
       const res = await axios.post('http://192.168.0.103:3000/api/mis-salas', { token_docente: token })
-      if (res.data.exito) {
-        setMisSalas(res.data.salas || [])
-      }
-    } catch (error) {
-      console.error("Error cargando historial de salas:", error)
-    }
+      if (res.data.exito) setMisSalas(res.data.salas || [])
+    } catch (e) { console.error(e) }
   }
 
-  // --- DISTRIBUCIÓN 1: SECUENCIAL EN TIEMPO REAL ---
+  // --- SINCRONIZACIÓN AUTORITARIA ---
   useEffect(() => {
-    if (alumnos.length === 0) {
-      setEquipos([])
-      return
-    }
-    
-    const nuevosEquipos = []
+    if (alumnos.length === 0) { setEquipos([]); return }
+    const nuevos = []
     for (let i = 0; i < alumnos.length; i += Number(tamanioEquipo)) {
-      nuevosEquipos.push(alumnos.slice(i, i + Number(tamanioEquipo)))
+      nuevos.push(alumnos.slice(i, i + Number(tamanioEquipo)))
     }
-    setEquipos(nuevosEquipos)
-  }, [alumnos, tamanioEquipo])
+    setEquipos(nuevos)
+
+    // Avisa a todos los alumnos la lista OFICIAL y actualizada de alumnos y equipos
+    if (codigoSala) {
+      socket.emit('equipos_generados', { 
+        sala: codigoSala, 
+        mensaje: 'Actualización en vivo', 
+        equipos: nuevos,
+        alumnos: alumnos 
+      })
+      
+      // Guardado permanente en Base de Datos
+      axios.post('http://192.168.0.103:3000/api/guardar-equipos', {
+        codigo_sala: codigoSala,
+        token_docente: localStorage.getItem('token'),
+        equipos_json: JSON.stringify(nuevos)
+      }).catch(e => console.error("Error guardando en BD"));
+    }
+  }, [alumnos, tamanioEquipo, codigoSala])
 
   const crearSala = async () => {
     const token = localStorage.getItem('token')
     try {
-      const res = await axios.post('http://192.168.0.103:3000/api/crear-sala', { 
-        token_docente: token,
-        max_alumnos_por_equipo: Number(tamanioEquipo) 
-      })
-      if (res.data.exito) {
-        entrarASala({
-          codigo_sala: res.data.codigo_sala,
-          max_alumnos_por_equipo: tamanioEquipo,
-          alumnos: [],
-          equipos_json: "[]"
-        })
-      }
-    } catch (error) {
-      console.error(error)
-      alert('Error al crear la sala')
-    }
+      const res = await axios.post('http://192.168.0.103:3000/api/crear-sala', { token_docente: token, max_alumnos_por_equipo: Number(tamanioEquipo) })
+      if (res.data.exito) entrarASala({ codigo_sala: res.data.codigo_sala, max_alumnos_por_equipo: tamanioEquipo, alumnos: [], equipos_json: '[]' })
+    } catch (e) { alert('Error al crear la sala') }
   }
 
   const entrarASala = (salaObj) => {
     setCodigoSala(salaObj.codigo_sala)
     setTamanioEquipo(salaObj.max_alumnos_por_equipo || 3)
-    
-    if (salaObj.equipos_json && salaObj.equipos_json !== "[]") {
-      const equiposDesdeDB = JSON.parse(salaObj.equipos_json)
-      const equiposPlanos = equiposDesdeDB.map(equipo => equipo.map(alumno => alumno.nombre))
-      
-      const alumnosEnEquipos = equiposPlanos.flat()
-      const alumnosTotales = salaObj.alumnos || []
-      
-      const faltantes = alumnosTotales.filter(a => !alumnosEnEquipos.includes(a))
-      
-      setAlumnos([...alumnosEnEquipos, ...faltantes])
+    if (salaObj.equipos_json && salaObj.equipos_json !== '[]') {
+      const eq = JSON.parse(salaObj.equipos_json).map(e => e.map(a => a.nombre))
+      const enEquipos = eq.flat()
+      const faltantes = (salaObj.alumnos || []).filter(a => !enEquipos.includes(a))
+      setAlumnos([...enEquipos, ...faltantes])
     } else {
       setAlumnos(salaObj.alumnos || [])
     }
-
     socket.emit('conectar_a_sala', salaObj.codigo_sala)
   }
 
-  // --- DISTRIBUCIÓN 2: ALEATORIA BAJO DEMANDA ---
   const generarAleatorios = () => {
-    if (alumnos.length === 0) return alert('No hay alumnos para armar equipos')
-
-    const alumnosMezclados = [...alumnos].sort(() => Math.random() - 0.5)
-    setAlumnos(alumnosMezclados)
-
-    const equiposCalculados = []
-    for (let i = 0; i < alumnosMezclados.length; i += Number(tamanioEquipo)) {
-      equiposCalculados.push(alumnosMezclados.slice(i, i + Number(tamanioEquipo)))
-    }
-
-    socket.emit('equipos_generados', { 
-      sala: codigoSala, 
-      mensaje: '¡Los equipos han sido generados aleatoriamente!',
-      equipos: equiposCalculados 
-    })
+    if (alumnos.length === 0) return alert('No hay alumnos')
+    const mezclados = [...alumnos].sort(() => Math.random() - 0.5)
+    setAlumnos(mezclados) // Esto dispara el useEffect de sincronización de arriba
   }
 
-  // --- NUEVA FUNCIÓN: ELIMINAR SALA ---
   const manejarEliminarSala = async (codigo) => {
-    if (!window.confirm(`¿Estás seguro de que quieres eliminar la sala ${codigo} para siempre?`)) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post('http://192.168.0.103:3000/api/eliminar-sala', {
-        codigo_sala: codigo,
-        token_docente: token
-      });
-
-      if (res.data.exito) {
-        setMisSalas(misSalas.filter(sala => sala.codigo_sala !== codigo));
-      } else {
-        alert(res.data.mensaje);
-      }
-    } catch (error) {
-      console.error(error);
-      alert('Error al intentar eliminar la sala');
-    }
-  };
+    if (!window.confirm(`¿Eliminar la sala ${codigo}?`)) return
+    const token = localStorage.getItem('token')
+    const res = await axios.post('http://192.168.0.103:3000/api/eliminar-sala', { codigo_sala: codigo, token_docente: token })
+    if (res.data.exito) setMisSalas(misSalas.filter(s => s.codigo_sala !== codigo))
+    else alert(res.data.mensaje)
+  }
 
   const volverAlHistorial = () => {
-    setCodigoSala('')
-    setAlumnos([])
-    setEquipos([])
-    socket.disconnect() // <-- PRO TIP: Cortamos la radio si solo vuelve al menú
-    socket.connect()    // <-- Volvemos a conectar para estar listos para otra sala
+    setCodigoSala(''); setAlumnos([]); setEquipos([])
+    socket.disconnect(); socket.connect()
     cargarMisSalas(localStorage.getItem('token'))
   }
 
-  const cerrarSesion = () => {
-    localStorage.removeItem('token')
-    socket.disconnect() // <-- PRO TIP: Cortamos la radio permanentemente
-    navigate('/login')
-  }
+  const cerrarSesion = () => { localStorage.removeItem('token'); socket.disconnect(); navigate('/login') }
+
+  const iniciales = miNombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
 
   return (
-    <div style={{ padding: '40px', fontFamily: 'system-ui', maxWidth: '900px', margin: '0 auto' }}>
-      
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '20px', marginBottom: '30px' }}>
-        <h1 style={{ margin: 0 }}>Panel del Docente 👨‍🏫</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <span style={{ color: '#666', fontSize: '18px' }}>Bienvenido, <strong>{miNombre}</strong></span>
-          <button 
-            onClick={cerrarSesion} 
-            style={{ padding: '10px 15px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            Cerrar Sesión 🚪
-          </button>
+    <div style={s.shell}>
+      <div style={s.topbar}>
+        <div style={s.topbarLeft}>
+          <div style={s.avatar(color.purpleLight, color.purple)}>{iniciales}</div>
+          <div>
+            <div style={s.topbarName}>{miNombre}</div>
+            <div style={s.topbarRole}>Docente</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {codigoSala && <button onClick={volverAlHistorial} style={s.btnSmall}>← Volver</button>}
+          <button onClick={cerrarSesion} style={s.btnDanger}>Cerrar sesión</button>
         </div>
       </div>
-      
+
       {!codigoSala ? (
-        <div style={{ marginTop: '40px' }}>
-          
-          <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '10px', marginBottom: '30px' }}>
-            <h2>Mis Salas Anteriores 📂</h2>
-            {(!misSalas || misSalas.length === 0) ? (
-              <p style={{ color: '#666' }}>Aún no tienes salas creadas.</p>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '15px' }}>
-                {misSalas.map((sala, index) => (
-                  <div key={index} style={{ background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <strong style={{ fontSize: '18px', color: '#007bff' }}>{sala.codigo_sala}</strong>
-                      <div style={{ fontSize: '14px', color: '#555' }}>Equipos de: {sala.max_alumnos_por_equipo} | Alumnos: {sala.alumnos ? sala.alumnos.length : 0}</div>
-                    </div>
-                    
-                    {/* --- NUEVOS BOTONES DE ACCIÓN (ENTRAR Y ELIMINAR) --- */}
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button 
-                        onClick={() => entrarASala(sala)}
-                        style={{ padding: '8px 15px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
-                        title="Entrar a la sala"
-                      >
-                        Entrar
-                      </button>
-                      <button 
-                        onClick={() => manejarEliminarSala(sala.codigo_sala)}
-                        style={{ padding: '8px 12px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
-                        title="Eliminar esta sala"
-                      >
-                        🗑️
-                      </button>
-                    </div>
+        <div style={s.main}>
+          <p style={s.sectionTitle}>Mis salas <span style={{ fontSize: '12px', color: color.muted, fontWeight: '400' }}>{misSalas.length} salas</span></p>
+          {misSalas.length > 0 && (
+            <div style={s.grid}>
+              {misSalas.map((sala, i) => (
+                <div key={i} style={s.salaCard}>
+                  <div style={s.salaCode}>{sala.codigo_sala}</div>
+                  <div style={s.salaMeta}>Equipos de {sala.max_alumnos_por_equipo} · {sala.alumnos?.length || 0} alumnos</div>
+                  <div style={s.salaActions}>
+                    <button onClick={() => entrarASala(sala)} style={s.btnEnter}>Entrar</button>
+                    <button onClick={() => manejarEliminarSala(sala.codigo_sala)} style={s.btnDel}>🗑</button>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={s.newCard}>
+            <p style={s.newCardText}>Genera un código nuevo para tu clase de hoy</p>
+            <button onClick={crearSala} style={s.btnNew}>+ Nueva sala</button>
           </div>
-
-          <div style={{ textAlign: 'center', background: '#e9ecef', padding: '30px', borderRadius: '10px' }}>
-            <h2>Empezar una Nueva Clase</h2>
-            <p>Genera un código nuevo para tus alumnos de hoy.</p>
-            <button onClick={crearSala} style={{ padding: '15px 30px', fontSize: '18px', background: '#007bff', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
-              ➕ Generar Nueva Sala
-            </button>
-          </div>
-
         </div>
       ) : (
-        <div style={{ marginTop: '30px' }}>
-          <div style={{ background: '#343a40', color: 'white', padding: '20px', borderRadius: '10px', textAlign: 'center', position: 'relative' }}>
-            <button 
-              onClick={volverAlHistorial} 
-              style={{ position: 'absolute', top: '20px', left: '20px', padding: '5px 10px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
-            >
-              ⬅ Volver
-            </button>
-            <h2>Código de Sala: <span style={{ color: '#ffc107', fontSize: '40px', display: 'block' }}>{codigoSala}</span></h2>
-            <p>Pide a tus alumnos que ingresen este código</p>
+        <div>
+          <div style={s.salaHeader}>
+            <div>
+              <p style={s.salaHeaderTitle}>Código de sala</p>
+              <div style={s.salaCodeBig}>{codigoSala}</div>
+            </div>
+            <div style={{ fontSize: '13px', opacity: .75, textAlign: 'right' }}>Comparte este código<br />con tus alumnos</div>
           </div>
-
-          <div style={{ display: 'flex', gap: '20px', marginTop: '30px' }}>
-            <div style={{ flex: 1, background: '#f8f9fa', padding: '20px', borderRadius: '10px' }}>
-              <h3>Configuración</h3>
-              <label style={{ display: 'block', marginBottom: '10px' }}>Tamaño de los equipos:</label>
-              <input 
-                type="number" 
-                min="1" 
-                value={tamanioEquipo} 
-                onChange={(e) => setTamanioEquipo(e.target.value)}
-                style={{ padding: '10px', width: '100%', marginBottom: '20px', fontSize: '18px' }}
-              />
-              
-              <button 
-                onClick={generarAleatorios} 
-                style={{ padding: '15px', width: '100%', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', fontSize: '16px', cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                🔀 Generar Equipos Aleatorios
-              </button>
-              
-              <div style={{ marginTop: '20px', borderTop: '2px solid #ddd', paddingTop: '20px' }}>
-                <h4>Alumnos Conectados ({alumnos.length}):</h4>
-                <ul style={{ paddingLeft: '20px' }}>
-                  {alumnos.map((alumno, index) => (
-                    <li key={index} style={{ padding: '5px 0' }}>{alumno}</li>
-                  ))}
-                </ul>
+          <div style={s.salaBody}>
+            <div>
+              <div style={{ ...s.panel, marginBottom: '12px' }}>
+                <p style={s.panelTitle}>Configuración</p>
+                <div style={s.cfgLabel}>Tamaño de equipos</div>
+                <input style={s.cfgInput} type="number" min="1" value={tamanioEquipo} onChange={e => setTamanioEquipo(e.target.value)} />
+                <button onClick={generarAleatorios} style={s.btnRandom}>🔀 Aleatorio</button>
+              </div>
+              <div style={s.panel}>
+                <p style={s.panelTitle}>Alumnos conectados <strong style={{ color: color.text }}>{alumnos.length}</strong></p>
+                {alumnos.map((a, i) => (
+                  <div key={i} style={s.alumnoChip}><span style={s.dot}></span>{a}</div>
+                ))}
               </div>
             </div>
-
-            <div style={{ flex: 2, background: '#e9ecef', padding: '20px', borderRadius: '10px' }}>
-              <h3>Pizarrón de Equipos</h3>
-              {equipos.length === 0 ? (
-                <p style={{ color: '#666' }}>Esperando alumnos para armar equipos...</p>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
-                  {equipos.map((equipo, i) => (
-                    <div key={i} style={{ background: 'white', padding: '15px', borderRadius: '8px', borderLeft: '5px solid #28a745', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                      <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>Equipo {i + 1}</h4>
-                      <ul style={{ margin: 0, paddingLeft: '20px', color: '#555' }}>
-                        {equipo.map((integrante, j) => (
-                          <li key={j}>{integrante}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div style={s.panel}>
+              <p style={s.panelTitle}>Pizarrón de equipos</p>
+              {equipos.length === 0
+                ? <p style={{ color: color.muted, fontSize: '14px' }}>Esperando alumnos...</p>
+                : <div style={s.equiposGrid}>
+                    {equipos.map((eq, i) => {
+                      const accent = COLORES_EQUIPO[i % COLORES_EQUIPO.length]
+                      return (
+                        <div key={i} style={s.equipoCard(accent)}>
+                          <div style={s.equipoNum(accent)}>Equipo {i + 1}</div>
+                          {eq.map((m, j) => <div key={j} style={s.equipoMember}>{m}</div>)}
+                        </div>
+                      )
+                    })}
+                  </div>
+              }
             </div>
           </div>
         </div>
