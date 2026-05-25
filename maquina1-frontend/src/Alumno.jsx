@@ -79,14 +79,11 @@ export default function Alumno() {
       })
       
       if (res.data.exito) {
-        // En lugar de solo decir "Unido", disparamos la vista completa
         entrarASala({
           codigo_sala: codigoSala.toUpperCase(),
-          alumnos: [miNombre], // Se pone a sí mismo por defecto
+          alumnos: [miNombre], 
           equipos_json: "[]"
         })
-        
-        // Recargamos el historial en el fondo por si quiere volver luego
         cargarMisSalas(token)
       } else {
         alert(res.data.mensaje)
@@ -104,7 +101,6 @@ export default function Alumno() {
     
     setAlumnos(sala.alumnos || [])
     
-    // Si la sala ya tenía equipos guardados en la BD, los reconstruimos
     if (sala.equipos_json && sala.equipos_json !== "[]") {
       const equiposDesdeDB = JSON.parse(sala.equipos_json)
       const equiposPlanos = equiposDesdeDB.map(eq => eq.map(a => a.nombre))
@@ -123,14 +119,32 @@ export default function Alumno() {
     setEquipos([])
   }
 
+  // --- NUEVA FUNCIÓN: CERRAR SESIÓN ---
+  const cerrarSesion = () => {
+    localStorage.removeItem('token') // Destruimos el gafete
+    socket.disconnect() // Cortamos la radio por seguridad
+    navigate('/login') // Lo mandamos pa' fuera
+  }
+
   return (
     <div style={{ padding: '40px', fontFamily: 'system-ui', maxWidth: '900px', margin: '0 auto' }}>
-      <h1 style={{ textAlign: 'center' }}>Portal del Alumno 👨‍🎓</h1>
-      <p style={{ textAlign: 'center', color: '#666' }}>Bienvenido, <strong>{miNombre}</strong></p>
+      
+      {/* --- NUEVO ENCABEZADO CON BOTÓN DE CERRAR SESIÓN --- */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '20px', marginBottom: '30px' }}>
+        <h1 style={{ margin: 0 }}>Portal del Alumno 👨‍🎓</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <span style={{ color: '#666', fontSize: '18px' }}>Bienvenido, <strong>{miNombre}</strong></span>
+          <button 
+            onClick={cerrarSesion} 
+            style={{ padding: '10px 15px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            Cerrar Sesión 🚪
+          </button>
+        </div>
+      </div>
       
       {!unido ? (
-        <div style={{ marginTop: '40px' }}>
-          
+        <div>
           {/* SECCIÓN 1: Historial de Salas del Alumno */}
           <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '10px', marginBottom: '30px' }}>
             <h2>Mis Clases Anteriores 📚</h2>
@@ -180,13 +194,13 @@ export default function Alumno() {
         </div>
       ) : (
         // VISTA 2: PIZARRÓN ESPEJO (SALA DE ESPERA)
-        <div style={{ marginTop: '30px' }}>
+        <div>
           <div style={{ background: '#17a2b8', color: 'white', padding: '20px', borderRadius: '10px', textAlign: 'center', position: 'relative' }}>
             <button 
               onClick={volverAlInicio} 
               style={{ position: 'absolute', top: '20px', left: '20px', padding: '5px 10px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
             >
-              ⬅ Salir
+              ⬅ Salir de la Sala
             </button>
             <h2>Estás en la Sala: <span style={{ color: '#ffc107', fontSize: '40px', display: 'block' }}>{codigoSala}</span></h2>
             <h3 style={{ margin: '10px 0 0 0', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '5px' }}>{mensajeEstado}</h3>

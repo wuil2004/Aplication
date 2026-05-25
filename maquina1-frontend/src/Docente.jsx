@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { io } from 'socket.io-client'
+import { jwtDecode } from 'jwt-decode' // <-- Añadido para leer el nombre del profe
 
 const socket = io('http://192.168.0.103:3000', { autoConnect: false })
 
@@ -12,6 +13,7 @@ export default function Docente() {
   const [equipos, setEquipos] = useState([]) 
   const [tamanioEquipo, setTamanioEquipo] = useState(3) 
   const [misSalas, setMisSalas] = useState([]) 
+  const [miNombre, setMiNombre] = useState('') // <-- Añadido para guardar el nombre
   
   const navigate = useNavigate()
 
@@ -21,6 +23,10 @@ export default function Docente() {
       navigate('/login')
       return
     }
+
+    // Sacamos el nombre del profe de su propio gafete
+    const decodificado = jwtDecode(token)
+    setMiNombre(decodificado.nombre)
 
     socket.connect()
     cargarMisSalas(token)
@@ -50,7 +56,6 @@ export default function Docente() {
   }
 
   // --- DISTRIBUCIÓN 1: SECUENCIAL EN TIEMPO REAL ---
-  // Le quitamos el candado. Siempre que entre alguien o cambie el tamaño, se arman los equipos.
   useEffect(() => {
     if (alumnos.length === 0) {
       setEquipos([])
@@ -93,15 +98,11 @@ export default function Docente() {
       const equiposDesdeDB = JSON.parse(salaObj.equipos_json)
       const equiposPlanos = equiposDesdeDB.map(equipo => equipo.map(alumno => alumno.nombre))
       
-      // EL TRUCO PARA NO BORRAR LA BASE DE DATOS:
-      // Acomodamos la lista de alumnos en el mismo orden que tenían los equipos guardados.
       const alumnosEnEquipos = equiposPlanos.flat()
       const alumnosTotales = salaObj.alumnos || []
       
-      // Por si se unió alguien mientras la sala estaba apagada
       const faltantes = alumnosTotales.filter(a => !alumnosEnEquipos.includes(a))
       
-      // Esto dispara el useEffect secuencial, pero replicando el estado de la BD
       setAlumnos([...alumnosEnEquipos, ...faltantes])
     } else {
       setAlumnos(salaObj.alumnos || [])
@@ -114,16 +115,19 @@ export default function Docente() {
   const generarAleatorios = () => {
     if (alumnos.length === 0) return alert('No hay alumnos para armar equipos')
 
-    // Revolvemos la lista maestra de alumnos. Al hacer esto, React dispara 
-    // automáticamente el useEffect secuencial de arriba y los empaqueta al azar.
     const alumnosMezclados = [...alumnos].sort(() => Math.random() - 0.5)
     setAlumnos(alumnosMezclados)
 
-    // AVISO A WEB SOCKET
+    // CORRECCIÓN: Calculamos los equipos aquí mismo para poder mandarlos por el radio
+    const equiposCalculados = []
+    for (let i = 0; i < alumnosMezclados.length; i += Number(tamanioEquipo)) {
+      equiposCalculados.push(alumnosMezclados.slice(i, i + Number(tamanioEquipo)))
+    }
+
     socket.emit('equipos_generados', { 
       sala: codigoSala, 
       mensaje: '¡Los equipos han sido generados aleatoriamente!',
-      equipos: nuevosEquipos // <-- ¡NUEVO! Le mandamos los equipos armados al Gateway
+      equipos: equiposCalculados // Mandamos la variable correcta
     })
   }
 
@@ -134,9 +138,29 @@ export default function Docente() {
     cargarMisSalas(localStorage.getItem('token'))
   }
 
+  // --- NUEVA FUNCIÓN: CERRAR SESIÓN ---
+  const cerrarSesion = () => {
+    localStorage.removeItem('token')
+    socket.disconnect()
+    navigate('/login')
+  }
+
   return (
     <div style={{ padding: '40px', fontFamily: 'system-ui', maxWidth: '900px', margin: '0 auto' }}>
-      <h1 style={{ textAlign: 'center' }}>Panel del Docente 👨‍🏫</h1>
+      
+      {/* --- ENCABEZADO ACTUALIZADO CON BOTÓN DE SALIDA --- */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '20px', marginBottom: '30px' }}>
+        <h1 style={{ margin: 0 }}>Panel del Docente 👨‍🏫</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <span style={{ color: '#666', fontSize: '18px' }}>Bienvenido, <strong>{miNombre}</strong></span>
+          <button 
+            onClick={cerrarSesion} 
+            style={{ padding: '10px 15px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
+            Cerrar Sesión 🚪
+          </button>
+        </div>
+      </div>
       
       {!codigoSala ? (
         <div style={{ marginTop: '40px' }}>

@@ -2,13 +2,14 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import axios from 'axios'
+import { jwtDecode } from 'jwt-decode' // <-- NUEVO: Necesario para leer el gafete tras el auto-login
 
 export default function Registro() {
   const [nombre, setNombre] = useState('')
   const [correo, setCorreo] = useState('')
   const [password, setPassword] = useState('')
   const [rol, setRol] = useState('alumno')
-  const [codigoSecreto, setCodigoSecreto] = useState('') // Solo para profes
+  const [codigoSecreto, setCodigoSecreto] = useState('') 
   
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
@@ -21,8 +22,8 @@ export default function Registro() {
     setMensaje('')
 
     try {
-      // OJO: Si pruebas desde otro celular, recuerda cambiar 'localhost' por la IP de tu Máquina 2
-      const res = await axios.post('http://192.168.0.103:3000/api/registro', { 
+      // 1. Intentamos crear la cuenta
+      const resRegistro = await axios.post('http://192.168.0.103:3000/api/registro', { 
         nombre, 
         correo, 
         password, 
@@ -30,12 +31,34 @@ export default function Registro() {
         codigo_secreto: rol === 'docente' ? codigoSecreto : undefined
       })
       
-      if (res.data.exito) {
-        setMensaje('✅ ¡Registro exitoso! Redirigiendo al login...')
-        // Esperamos 2 segundos para que lea el mensaje y lo mandamos al login
-        setTimeout(() => navigate('/login'), 2000)
+      if (resRegistro.data.exito) {
+        setMensaje('✅ ¡Cuenta creada! Iniciando sesión automáticamente...')
+        
+        // 2. EL TRUCO: Auto-Login por debajo del agua
+        const resLogin = await axios.post('http://192.168.0.103:3000/api/login', { 
+          correo: correo, 
+          password: password 
+        })
+
+        if (resLogin.data.exito) {
+          const token = resLogin.data.token
+          
+          // Guardamos el gafete igual que en Login.jsx
+          localStorage.setItem('token', token)
+          const decodificado = jwtDecode(token)
+          
+          // Damos 1 segundo para que el usuario alcance a leer el mensaje verde
+          // y luego lo mandamos directito a su panel
+          setTimeout(() => {
+            if (decodificado.rol === 'docente') {
+              navigate('/docente')
+            } else {
+              navigate('/alumno')
+            }
+          }, 1000)
+        }
       } else {
-        setError(res.data.mensaje)
+        setError(resRegistro.data.mensaje) // Error si el correo ya existe, por ejemplo
       }
     } catch (err) {
       console.error(err)
