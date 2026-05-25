@@ -39,3 +39,7 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+
+/maquina3-salas/node_modules/
+/maquina2-gateway/node_modules/
