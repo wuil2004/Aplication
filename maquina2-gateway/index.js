@@ -32,11 +32,13 @@ io.on('connection', (socket) => {
     });
 
     // Nuevo: Escuchamos cuando el Profe avisa que ya revolvió los equipos aleatoriamente
+    // Nuevo: Escuchamos cuando el Profe avisa y le pasamos los equipos a los alumnos
     socket.on('equipos_generados', (data) => {
-        // Le avisamos a todos los alumnos de esa sala
-        io.to(data.sala).emit('equipos_listos', { mensaje: data.mensaje });
+        io.to(data.sala).emit('equipos_listos', { 
+            mensaje: data.mensaje,
+            equipos: data.equipos // <-- ¡NUEVO! Pasamos el arreglo de equipos
+        });
     });
-
     socket.on('disconnect', () => {
         console.log('🔌 Navegador desconectado');
     });
@@ -46,8 +48,8 @@ const packageDefinition = protoLoader.loadSync('./servicios.proto', { keepCase: 
 const proto = grpc.loadPackageDefinition(packageDefinition).sistema;
 
 // Conexiones a tus otras máquinas físicas
-const authClient = new proto.AuthService('192.168.50.50:50051', grpc.credentials.createInsecure());
-const salasClient = new proto.SalasService('192.168.50.20:50052', grpc.credentials.createInsecure());
+const authClient = new proto.AuthService('192.168.0.103:50051', grpc.credentials.createInsecure());
+const salasClient = new proto.SalasService('192.168.0.103:50052', grpc.credentials.createInsecure());
 
 // --- RUTAS HTTP --- (Registro, Login y Crear Sala quedan igual)
 app.post('/api/registro', (req, res) => {
@@ -62,6 +64,31 @@ app.post('/api/crear-sala', (req, res) => {
     salasClient.CrearSala(req.body, (err, resp) => err ? res.status(500).json({exito:false}) : res.json(resp));
 });
 
+// --- NUEVA RUTA PARA PEDIR EL HISTORIAL DE SALAS ---
+app.post('/api/mis-salas', (req, res) => {
+    const { token_docente } = req.body;
+
+    // El Gateway le pide a la Máquina 3 (Salas) que busque en MongoDB
+    salasClient.ObtenerMisSalas({ token_docente: token_docente }, (error, respuesta) => {
+        if (error) {
+            console.error("❌ Error pidiendo salas a la Máquina 3:", error.message);
+            return res.status(500).json({ exito: false, mensaje: 'Error interno' });
+        }
+        res.json(respuesta);
+    });
+});
+
+// --- NUEVA RUTA PARA EL HISTORIAL DEL ALUMNO ---
+app.post('/api/mis-salas-alumno', (req, res) => {
+    const { token_alumno } = req.body;
+    salasClient.ObtenerSalasAlumno({ token_alumno: token_alumno }, (error, respuesta) => {
+        if (error) {
+            console.error("❌ Error pidiendo salas del alumno:", error.message);
+            return res.status(500).json({ exito: false, mensaje: 'Error interno' });
+        }
+        res.json(respuesta);
+    });
+});
 
 // --- LA MAGIA: RUTAS CON AVISO EN TIEMPO REAL ---
 

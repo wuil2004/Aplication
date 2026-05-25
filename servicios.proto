@@ -50,8 +50,11 @@ service SalasService {
   // Para que el docente presione "Crear Equipos" y se ejecute el algoritmo
   rpc GenerarEquipos (GenerarEquiposRequest) returns (GenerarEquiposResponse) {}
 
-  // NUEVO: Para pedir el historial de salas de un profe
+  // Para pedir el historial de salas de un profe
   rpc ObtenerMisSalas (ObtenerSalasRequest) returns (ObtenerSalasResponse) {}
+
+  // ¡NUEVO!: Para que el alumno pida las salas en las que ya está inscrito
+  rpc ObtenerSalasAlumno (ObtenerSalasAlumnoRequest) returns (ObtenerSalasResponse) {}
 }
 
 message CrearSalaRequest {
@@ -91,13 +94,17 @@ message ObtenerSalasRequest {
   string token_docente = 1; // Necesitamos saber qué profe está pidiendo su lista
 }
 
-// Este mensaje representa UNA sola sala en la lista
+// ¡NUEVO!: Mensaje para que el alumno pida su historial
+message ObtenerSalasAlumnoRequest {
+  string token_alumno = 1; 
+}
+
 // Este mensaje representa UNA sola sala en la lista
 message SalaInfo {
   string codigo_sala = 1;
   int32 max_alumnos_por_equipo = 2;
-  repeated string alumnos = 3; // NUEVO: La lista de nombres
-  string equipos_json = 4;     // NUEVO: Un truco para mandar los equipos comprimidos
+  repeated string alumnos = 3; // La lista de nombres
+  string equipos_json = 4;     // Un truco para mandar los equipos comprimidos
 }
 
 message ObtenerSalasResponse {

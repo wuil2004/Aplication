@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { io } from 'socket.io-client'
 
-const socket = io('http://192.168.50.214:3000', { autoConnect: false })
+const socket = io('http://192.168.0.103:3000', { autoConnect: false })
 
 export default function Docente() {
   const [codigoSala, setCodigoSala] = useState('')
@@ -40,7 +40,7 @@ export default function Docente() {
 
   const cargarMisSalas = async (token) => {
     try {
-      const res = await axios.post('http://192.168.50.214:3000/api/mis-salas', { token_docente: token })
+      const res = await axios.post('http://192.168.0.103:3000/api/mis-salas', { token_docente: token })
       if (res.data.exito) {
         setMisSalas(res.data.salas || [])
       }
@@ -67,7 +67,7 @@ export default function Docente() {
   const crearSala = async () => {
     const token = localStorage.getItem('token')
     try {
-      const res = await axios.post('http://192.168.50.214:3000/api/crear-sala', { 
+      const res = await axios.post('http://192.168.0.103:3000/api/crear-sala', { 
         token_docente: token,
         max_alumnos_por_equipo: Number(tamanioEquipo) 
       })
@@ -119,9 +119,11 @@ export default function Docente() {
     const alumnosMezclados = [...alumnos].sort(() => Math.random() - 0.5)
     setAlumnos(alumnosMezclados)
 
+    // AVISO A WEB SOCKET
     socket.emit('equipos_generados', { 
       sala: codigoSala, 
-      mensaje: '¡Los equipos han sido generados aleatoriamente!' 
+      mensaje: '¡Los equipos han sido generados aleatoriamente!',
+      equipos: nuevosEquipos // <-- ¡NUEVO! Le mandamos los equipos armados al Gateway
     })
   }
 

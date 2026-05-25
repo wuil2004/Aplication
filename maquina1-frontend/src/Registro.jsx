@@ -22,7 +22,7 @@ export default function Registro() {
 
     try {
       // OJO: Si pruebas desde otro celular, recuerda cambiar 'localhost' por la IP de tu Máquina 2
-      const res = await axios.post('http://192.168.50.214:3000/api/registro', { 
+      const res = await axios.post('http://192.168.0.103:3000/api/registro', { 
         nombre, 
         correo, 
         password, 

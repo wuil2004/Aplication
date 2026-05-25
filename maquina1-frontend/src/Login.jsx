@@ -18,7 +18,7 @@ export default function Login() {
 
     try {
       // Tu IP real ya está configurada aquí
-      const res = await axios.post('http://192.168.50.214:3000/api/login', { 
+      const res = await axios.post('http://192.168.0.103:3000/api/login', { 
         correo: correo, 
         password: password 
       })
