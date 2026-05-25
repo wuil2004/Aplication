@@ -55,6 +55,9 @@ service SalasService {
 
   // ¡NUEVO!: Para que el alumno pida las salas en las que ya está inscrito
   rpc ObtenerSalasAlumno (ObtenerSalasAlumnoRequest) returns (ObtenerSalasResponse) {}
+
+  // Para que el profe elimine una sala de la base de datos
+  rpc EliminarSala (EliminarSalaRequest) returns (EliminarSalaResponse) {}
 }
 
 message CrearSalaRequest {
@@ -111,4 +114,14 @@ message ObtenerSalasResponse {
   bool exito = 1;
   string mensaje = 2;
   repeated SalaInfo salas = 3; // "repeated" significa que es un arreglo (lista) de salas
+}
+
+message EliminarSalaRequest {
+  string codigo_sala = 1;
+  string token_docente = 2; // Para asegurar que solo el profe dueño pueda borrarla
+}
+
+message EliminarSalaResponse {
+  bool exito = 1;
+  string mensaje = 2;
 }

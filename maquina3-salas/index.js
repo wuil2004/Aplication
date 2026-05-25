@@ -175,6 +175,31 @@ async function ObtenerSalasAlumno(call, callback) {
     }
 }
 
+// F. NUEVO: Eliminar Sala
+async function EliminarSala(call, callback) {
+    const { codigo_sala, token_docente } = call.request;
+    try {
+        const decodificado = jwt.verify(token_docente, JWT_SECRET);
+        
+        // Buscamos la sala y la eliminamos, pero OJO: verificamos que el docente que 
+        // está pidiendo borrarla sea el verdadero dueño de esa sala.
+        const salaBorrada = await Sala.findOneAndDelete({ 
+            codigo_sala: codigo_sala, 
+            docente: decodificado.nombre 
+        });
+
+        if (!salaBorrada) {
+            return callback(null, { exito: false, mensaje: 'No se encontró la sala o no tienes permiso' });
+        }
+
+        console.log(`🗑️ Sala ${codigo_sala} eliminada permanentemente por ${decodificado.nombre}`);
+        callback(null, { exito: true, mensaje: 'Sala eliminada correctamente' });
+    } catch (error) {
+        console.error("❌ Error eliminando sala:", error.message);
+        callback(null, { exito: false, mensaje: 'Token inválido o error interno' });
+    }
+}
+
 // ==========================================
 // ENCENDIDO DEL SERVIDOR
 // ==========================================
@@ -184,7 +209,8 @@ server.addService(proto.SalasService.service, {
     UnirseSala, 
     GenerarEquipos, 
     ObtenerMisSalas ,
-    ObtenerSalasAlumno // <-- No olvides registrar la función aquí
+    ObtenerSalasAlumno , // <-- No olvides registrar la función aquí
+    EliminarSala
 });
 
 server.bindAsync('0.0.0.0:50052', grpc.ServerCredentials.createInsecure(), (error, port) => {

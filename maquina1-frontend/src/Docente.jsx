@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { io } from 'socket.io-client'
-import { jwtDecode } from 'jwt-decode' // <-- Añadido para leer el nombre del profe
+import { jwtDecode } from 'jwt-decode'
 
 const socket = io('http://192.168.0.103:3000', { autoConnect: false })
 
@@ -13,7 +13,7 @@ export default function Docente() {
   const [equipos, setEquipos] = useState([]) 
   const [tamanioEquipo, setTamanioEquipo] = useState(3) 
   const [misSalas, setMisSalas] = useState([]) 
-  const [miNombre, setMiNombre] = useState('') // <-- Añadido para guardar el nombre
+  const [miNombre, setMiNombre] = useState('') 
   
   const navigate = useNavigate()
 
@@ -24,7 +24,6 @@ export default function Docente() {
       return
     }
 
-    // Sacamos el nombre del profe de su propio gafete
     const decodificado = jwtDecode(token)
     setMiNombre(decodificado.nombre)
 
@@ -118,7 +117,6 @@ export default function Docente() {
     const alumnosMezclados = [...alumnos].sort(() => Math.random() - 0.5)
     setAlumnos(alumnosMezclados)
 
-    // CORRECCIÓN: Calculamos los equipos aquí mismo para poder mandarlos por el radio
     const equiposCalculados = []
     for (let i = 0; i < alumnosMezclados.length; i += Number(tamanioEquipo)) {
       equiposCalculados.push(alumnosMezclados.slice(i, i + Number(tamanioEquipo)))
@@ -127,28 +125,50 @@ export default function Docente() {
     socket.emit('equipos_generados', { 
       sala: codigoSala, 
       mensaje: '¡Los equipos han sido generados aleatoriamente!',
-      equipos: equiposCalculados // Mandamos la variable correcta
+      equipos: equiposCalculados 
     })
   }
+
+  // --- NUEVA FUNCIÓN: ELIMINAR SALA ---
+  const manejarEliminarSala = async (codigo) => {
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar la sala ${codigo} para siempre?`)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post('http://192.168.0.103:3000/api/eliminar-sala', {
+        codigo_sala: codigo,
+        token_docente: token
+      });
+
+      if (res.data.exito) {
+        setMisSalas(misSalas.filter(sala => sala.codigo_sala !== codigo));
+      } else {
+        alert(res.data.mensaje);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error al intentar eliminar la sala');
+    }
+  };
 
   const volverAlHistorial = () => {
     setCodigoSala('')
     setAlumnos([])
     setEquipos([])
+    socket.disconnect() // <-- PRO TIP: Cortamos la radio si solo vuelve al menú
+    socket.connect()    // <-- Volvemos a conectar para estar listos para otra sala
     cargarMisSalas(localStorage.getItem('token'))
   }
 
-  // --- NUEVA FUNCIÓN: CERRAR SESIÓN ---
   const cerrarSesion = () => {
     localStorage.removeItem('token')
-    socket.disconnect()
+    socket.disconnect() // <-- PRO TIP: Cortamos la radio permanentemente
     navigate('/login')
   }
 
   return (
     <div style={{ padding: '40px', fontFamily: 'system-ui', maxWidth: '900px', margin: '0 auto' }}>
       
-      {/* --- ENCABEZADO ACTUALIZADO CON BOTÓN DE SALIDA --- */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #eee', paddingBottom: '20px', marginBottom: '30px' }}>
         <h1 style={{ margin: 0 }}>Panel del Docente 👨‍🏫</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -177,12 +197,24 @@ export default function Docente() {
                       <strong style={{ fontSize: '18px', color: '#007bff' }}>{sala.codigo_sala}</strong>
                       <div style={{ fontSize: '14px', color: '#555' }}>Equipos de: {sala.max_alumnos_por_equipo} | Alumnos: {sala.alumnos ? sala.alumnos.length : 0}</div>
                     </div>
-                    <button 
-                      onClick={() => entrarASala(sala)}
-                      style={{ padding: '8px 15px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
-                    >
-                      Entrar
-                    </button>
+                    
+                    {/* --- NUEVOS BOTONES DE ACCIÓN (ENTRAR Y ELIMINAR) --- */}
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button 
+                        onClick={() => entrarASala(sala)}
+                        style={{ padding: '8px 15px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+                        title="Entrar a la sala"
+                      >
+                        Entrar
+                      </button>
+                      <button 
+                        onClick={() => manejarEliminarSala(sala.codigo_sala)}
+                        style={{ padding: '8px 12px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+                        title="Eliminar esta sala"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -78,6 +78,14 @@ app.post('/api/mis-salas', (req, res) => {
     });
 });
 
+// --- NUEVA RUTA PARA ELIMINAR SALA ---
+app.post('/api/eliminar-sala', (req, res) => {
+    salasClient.EliminarSala(req.body, (error, respuesta) => {
+        if (error) return res.status(500).json({ exito: false, mensaje: 'Error interno' });
+        res.json(respuesta);
+    });
+});
+
 // --- NUEVA RUTA PARA EL HISTORIAL DEL ALUMNO ---
 app.post('/api/mis-salas-alumno', (req, res) => {
     const { token_alumno } = req.body;
