@@ -94,48 +94,48 @@ export default function Alumno() {
     } catch (e) { console.error(e) }
   }
 
-  const entrarASala = async (sala) => {
+  const entrarASala = (sala) => {
+    // 1. Nos aseguramos de estar en el canal del socket inmediatamente
+    socket.emit('conectar_a_sala', sala.codigo_sala);
+
+    // 2. Cambiamos la vista a modo "Unido"
     setCodigoSala(sala.codigo_sala);
     setUnido(true);
     setMensajeEstado('Conectado · Esperando instrucciones...');
 
-    const token = localStorage.getItem('token');
-    try {
-      // Pedimos los datos frescos de la sala al servidor
-      const res = await axios.post('http://192.168.0.103:3000/api/mis-salas-alumno', { token_alumno: token });
-      
-      if (res.data.exito) {
-        const salaActualizada = res.data.salas.find(s => s.codigo_sala === sala.codigo_sala);
-        
-        // 1. Sincronizamos alumnos
-        setAlumnos(salaActualizada?.alumnos || []);
-        
-        // 2. ¡EL FIX! Sincronizamos equipos inmediatamente al entrar
-        if (salaActualizada?.equipos_json && salaActualizada.equipos_json !== '[]') {
-          const eq = JSON.parse(salaActualizada.equipos_json).map(e => e.map(a => a.nombre));
-          setEquipos(eq);
-        } else {
-          setEquipos([]);
-        }
+    // 3. Cargamos los datos iniciales SIN hacer fetch a la BD
+    // (Evitamos sobreescribir los datos frescos que manda el profe por el socket)
+    setAlumnos(sala.alumnos || []);
+    
+    if (sala.equipos_json && sala.equipos_json !== '[]') {
+      try {
+        const eq = JSON.parse(sala.equipos_json).map(e => e.map(a => a.nombre));
+        setEquipos(eq);
+      } catch (e) {
+        setEquipos([]);
       }
-    } catch (e) {
-      console.error("Error al sincronizar equipos iniciales:", e);
+    } else {
+      setEquipos([]);
     }
-
-    socket.emit('conectar_a_sala', sala.codigo_sala);
   }
 
   const manejarUnirse = async (e) => {
     e.preventDefault()
     const token = localStorage.getItem('token')
+    const salaAUnirse = codigoSala.toUpperCase()
+
+    // 🔥 EL CAMBIO CLAVE: Nos conectamos al socket ANTES de la petición HTTP.
+    // Así ya estamos dentro del canal escuchando cuando el profe emita los equipos.
+    socket.emit('conectar_a_sala', salaAUnirse)
+
     try {
       const res = await axios.post('http://192.168.0.103:3000/api/unirse-sala', {
-        codigo_sala: codigoSala.toUpperCase(),
+        codigo_sala: salaAUnirse,
         token_alumno: token
       })
       if (res.data.exito) {
         await entrarASala({
-          codigo_sala: codigoSala.toUpperCase(),
+          codigo_sala: salaAUnirse,
           alumnos: [],
           equipos_json: '[]'
         })
@@ -153,6 +153,8 @@ export default function Alumno() {
     setCodigoSala('')
     setAlumnos([])
     setEquipos([])
+
+    cargarMisSalas(localStorage.getItem('token'))
   }
 
   const cerrarSesion = () => {
