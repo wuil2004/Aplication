@@ -14,7 +14,8 @@ const salaSchema = new mongoose.Schema({
     docente: { type: String, required: true },
     max_alumnos_por_equipo: { type: Number, default: 3 },
     alumnos_conectados: [{ nombre: String }],
-    equipos: [[{ nombre: String }]] // Arreglo de arreglos
+    equipos: [[{ nombre: String }]], // Arreglo de arreglos
+    bloqueada: { type: Boolean, default: false } // Para bloquear la sala después de generar equipos
 });
 
 const Sala = mongoose.model('Sala', salaSchema);
@@ -67,6 +68,11 @@ async function UnirseSala(call, callback) {
         // Buscamos la sala en la base de datos
         const sala = await Sala.findOne({ codigo_sala: codigo_sala });
         if (!sala) return callback(null, { exito: false, mensaje: 'La sala no existe' });
+
+        // 👇 EL NUEVO GUARDIA DE SEGURIDAD
+        if (sala.bloqueada) {
+            return callback(null, { exito: false, mensaje: 'La sala ya fue cerrada por el profesor 🔒' });
+        }
 
         // Verificamos si ya está adentro
         const yaEsta = sala.alumnos_conectados.find(a => a.nombre === decodificado.nombre);
@@ -239,6 +245,25 @@ async function ObtenerEstadoSala(call, callback) {
     }
 }
 
+// NUEVO: Función para prender o apagar el candado
+async function BloquearSala(call, callback) {
+    const { codigo_sala, token_docente, estado_bloqueo } = call.request;
+    try {
+        const decodificado = jwt.verify(token_docente, JWT_SECRET);
+        const sala = await Sala.findOne({ codigo_sala: codigo_sala, docente: decodificado.nombre });
+        
+        if (!sala) return callback(null, { exito: false, mensaje: 'No autorizado o no existe' });
+
+        sala.bloqueada = estado_bloqueo;
+        await sala.save();
+
+        console.log(`🔒 Sala ${codigo_sala} candado: ${estado_bloqueo}`);
+        callback(null, { exito: true, mensaje: estado_bloqueo ? 'Sala cerrada' : 'Sala abierta' });
+    } catch (error) {
+        callback(null, { exito: false, mensaje: 'Error interno' });
+    }
+}
+
 // ==========================================
 // ENCENDIDO DEL SERVIDOR
 // ==========================================
@@ -250,7 +275,8 @@ server.addService(proto.SalasService.service, {
     ObtenerMisSalas ,
     ObtenerSalasAlumno , // <-- No olvides registrar la función aquí
     EliminarSala,
-    GuardarEquipos
+    GuardarEquipos,
+    BloquearSala
 });
 
 server.bindAsync('0.0.0.0:50052', grpc.ServerCredentials.createInsecure(), (error, port) => {

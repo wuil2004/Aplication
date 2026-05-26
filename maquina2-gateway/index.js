@@ -73,6 +73,18 @@ app.post('/api/guardar-equipos', (req, res) => {
     });
 });
 
+// --- NUEVA RUTA PARA PONER/QUITAR EL CANDADO ---
+app.post('/api/bloquear-sala', (req, res) => {
+    // req.body traerá: codigo_sala, token_docente y estado_bloqueo (true o false)
+    salasClient.BloquearSala(req.body, (error, respuesta) => {
+        if (error) {
+            console.error("❌ Error al cambiar candado:", error.message);
+            return res.status(500).json({ exito: false, mensaje: 'Error interno en el servidor' });
+        }
+        res.json(respuesta);
+    });
+});
+
 // --- NUEVA RUTA PARA PEDIR EL HISTORIAL DE SALAS ---
 app.post('/api/mis-salas', (req, res) => {
     const { token_docente } = req.body;

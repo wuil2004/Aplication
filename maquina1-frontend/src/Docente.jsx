@@ -61,6 +61,7 @@ export default function Docente() {
   const [tamanioEquipo, setTamanioEquipo] = useState(3)
   const [misSalas, setMisSalas] = useState([])
   const [miNombre, setMiNombre] = useState('')
+  const [bloqueada, setBloqueada] = useState(false) // <-- NUEVO ESTADO DEL CANDADO
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -118,13 +119,17 @@ export default function Docente() {
     const token = localStorage.getItem('token')
     try {
       const res = await axios.post('http://192.168.0.103:3000/api/crear-sala', { token_docente: token, max_alumnos_por_equipo: Number(tamanioEquipo) })
-      if (res.data.exito) entrarASala({ codigo_sala: res.data.codigo_sala, max_alumnos_por_equipo: tamanioEquipo, alumnos: [], equipos_json: '[]' })
+      if (res.data.exito) {
+        setBloqueada(false) // Al crear sala nueva, empieza abierta
+        entrarASala({ codigo_sala: res.data.codigo_sala, max_alumnos_por_equipo: tamanioEquipo, alumnos: [], equipos_json: '[]' })
+      }
     } catch (e) { alert('Error al crear la sala') }
   }
 
   const entrarASala = (salaObj) => {
     setCodigoSala(salaObj.codigo_sala)
     setTamanioEquipo(salaObj.max_alumnos_por_equipo || 3)
+    setBloqueada(false) // Por defecto la mostramos abierta al entrar (puedes ajustarlo luego si guardas este estado)
     if (salaObj.equipos_json && salaObj.equipos_json !== '[]') {
       const eq = JSON.parse(salaObj.equipos_json).map(e => e.map(a => a.nombre))
       const enEquipos = eq.flat()
@@ -140,6 +145,28 @@ export default function Docente() {
     if (alumnos.length === 0) return alert('No hay alumnos')
     const mezclados = [...alumnos].sort(() => Math.random() - 0.5)
     setAlumnos(mezclados) // Esto dispara el useEffect de sincronización de arriba
+  }
+
+  // --- NUEVA FUNCIÓN DEL CANDADO ---
+  const manejarCandado = async () => {
+    const token = localStorage.getItem('token')
+    const nuevoEstado = !bloqueada
+    
+    try {
+      const res = await axios.post('http://192.168.0.103:3000/api/bloquear-sala', {
+        codigo_sala: codigoSala,
+        token_docente: token,
+        estado_bloqueo: nuevoEstado
+      })
+      
+      if (res.data.exito) {
+        setBloqueada(nuevoEstado)
+      } else {
+        alert(res.data.mensaje)
+      }
+    } catch (e) {
+      alert('Error al cambiar el estado de la sala')
+    }
   }
 
   const manejarEliminarSala = async (codigo) => {
@@ -213,7 +240,21 @@ export default function Docente() {
                 <p style={s.panelTitle}>Configuración</p>
                 <div style={s.cfgLabel}>Tamaño de equipos</div>
                 <input style={s.cfgInput} type="number" min="1" value={tamanioEquipo} onChange={e => setTamanioEquipo(e.target.value)} />
-                <button onClick={generarAleatorios} style={s.btnRandom}>🔀 Aleatorio</button>
+                
+                {/* BOTÓN ALEATORIO CON MARGEN */}
+                <button onClick={generarAleatorios} style={{...s.btnRandom, marginBottom: '8px'}}>🔀 Aleatorio</button>
+                
+                {/* 👇 NUEVO BOTÓN DEL CANDADO 👇 */}
+                <button 
+                  onClick={manejarCandado} 
+                  style={{
+                    ...s.btnRandom, 
+                    background: bloqueada ? '#c0392b' : '#f39c12', // Rojo si está cerrada, Naranja si está abierta
+                    color: 'white'
+                  }}
+                >
+                  {bloqueada ? '🔓 Abrir sala' : '🔒 Cerrar sala'}
+                </button>
               </div>
               <div style={s.panel}>
                 <p style={s.panelTitle}>Alumnos conectados <strong style={{ color: color.text }}>{alumnos.length}</strong></p>

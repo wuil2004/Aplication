@@ -50,6 +50,9 @@ service SalasService {
   
   // ¡NUEVO!: Para guardar la foto de los equipos en BD
   rpc GuardarEquipos (GuardarEquiposRequest) returns (GuardarEquiposResponse) {}
+
+  // 👇 ¡AQUÍ VA EL CANDADO! 👇
+  rpc BloquearSala (BloquearSalaRequest) returns (BloquearSalaResponse) {}
 }
 
 message CrearSalaRequest {
@@ -132,6 +135,17 @@ message GuardarEquiposRequest {
 }
 
 message GuardarEquiposResponse {
+  bool exito = 1;
+  string mensaje = 2;
+}
+
+message BloquearSalaRequest {
+  string codigo_sala = 1;
+  string token_docente = 2;
+  bool estado_bloqueo = 3;
+}
+
+message BloquearSalaResponse {
   bool exito = 1;
   string mensaje = 2;
 }
