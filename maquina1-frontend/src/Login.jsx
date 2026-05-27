@@ -32,7 +32,7 @@ export default function Login() {
     e.preventDefault()
     setError('')
     try {
-      const res = await axios.post('http://192.168.0.103:3000/api/login', { correo, password })
+      const res = await axios.post('http://192.168.50.156:3000/api/login', { correo, password })
       if (res.data.exito) {
         const token = res.data.token
         localStorage.setItem('token', token)

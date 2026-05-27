@@ -5,7 +5,7 @@ import axios from 'axios'
 import { io } from 'socket.io-client'
 import { jwtDecode } from 'jwt-decode'
 
-const socket = io('http://192.168.0.103:3000', { autoConnect: false })
+const socket = io('http://192.168.50.156:3000', { autoConnect: false })
 
 const color = {
   purple: '#534AB7', purpleLight: '#EEEDFE', purpleMid: '#AFA9EC',
@@ -61,7 +61,7 @@ export default function Docente() {
   const [tamanioEquipo, setTamanioEquipo] = useState(3)
   const [misSalas, setMisSalas] = useState([])
   const [miNombre, setMiNombre] = useState('')
-  const [bloqueada, setBloqueada] = useState(false) // <-- NUEVO ESTADO DEL CANDADO
+  const [bloqueada, setBloqueada] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -73,8 +73,6 @@ export default function Docente() {
     cargarMisSalas(token)
     
     socket.on('alumno_unido', (data) => {
-      // Al recibir un nuevo alumno, el profe actualiza su estado. 
-      // El useEffect de abajo se dispara y re-transmite la lista a todos.
       setAlumnos(prev => prev.includes(data.nombre) ? prev : [...prev, data.nombre])
     })
     
@@ -83,13 +81,16 @@ export default function Docente() {
 
   const cargarMisSalas = async (token) => {
     try {
-      const res = await axios.post('http://192.168.0.103:3000/api/mis-salas', { token_docente: token })
+      const res = await axios.post('http://192.168.50.156:3000/api/mis-salas', { token_docente: token })
       if (res.data.exito) setMisSalas(res.data.salas || [])
     } catch (e) { console.error(e) }
   }
 
-  // --- SINCRONIZACIÓN AUTORITARIA ---
+  // --- PILOTO AUTOMÁTICO DE SINCRONIZACIÓN ---
   useEffect(() => {
+    // 🔥 CAMBIO AQUÍ: Si la sala está cerrada, detenemos el recalculo automático por orden de llegada
+    if (bloqueada) return;
+
     if (alumnos.length === 0) { setEquipos([]); return }
     const nuevos = []
     for (let i = 0; i < alumnos.length; i += Number(tamanioEquipo)) {
@@ -97,7 +98,6 @@ export default function Docente() {
     }
     setEquipos(nuevos)
 
-    // Avisa a todos los alumnos la lista OFICIAL y actualizada de alumnos y equipos
     if (codigoSala) {
       socket.emit('equipos_generados', { 
         sala: codigoSala, 
@@ -106,21 +106,20 @@ export default function Docente() {
         alumnos: alumnos 
       })
       
-      // Guardado permanente en Base de Datos
-      axios.post('http://192.168.0.103:3000/api/guardar-equipos', {
+      axios.post('http://192.168.50.156:3000/api/guardar-equipos', {
         codigo_sala: codigoSala,
         token_docente: localStorage.getItem('token'),
         equipos_json: JSON.stringify(nuevos)
       }).catch(e => console.error("Error guardando en BD"));
     }
-  }, [alumnos, tamanioEquipo, codigoSala])
+  }, [alumnos, tamanioEquipo, codigoSala, bloqueada]) // Escuchamos también el estado del candado
 
   const crearSala = async () => {
     const token = localStorage.getItem('token')
     try {
-      const res = await axios.post('http://192.168.0.103:3000/api/crear-sala', { token_docente: token, max_alumnos_por_equipo: Number(tamanioEquipo) })
+      const res = await axios.post('http://192.168.50.156:3000/api/crear-sala', { token_docente: token, max_alumnos_por_equipo: Number(tamanioEquipo) })
       if (res.data.exito) {
-        setBloqueada(false) // Al crear sala nueva, empieza abierta
+        setBloqueada(false)
         entrarASala({ codigo_sala: res.data.codigo_sala, max_alumnos_por_equipo: tamanioEquipo, alumnos: [], equipos_json: '[]' })
       }
     } catch (e) { alert('Error al crear la sala') }
@@ -129,7 +128,7 @@ export default function Docente() {
   const entrarASala = (salaObj) => {
     setCodigoSala(salaObj.codigo_sala)
     setTamanioEquipo(salaObj.max_alumnos_por_equipo || 3)
-    setBloqueada(false) // Por defecto la mostramos abierta al entrar (puedes ajustarlo luego si guardas este estado)
+    setBloqueada(false) 
     if (salaObj.equipos_json && salaObj.equipos_json !== '[]') {
       const eq = JSON.parse(salaObj.equipos_json).map(e => e.map(a => a.nombre))
       const enEquipos = eq.flat()
@@ -144,16 +143,16 @@ export default function Docente() {
   const generarAleatorios = () => {
     if (alumnos.length === 0) return alert('No hay alumnos')
     const mezclados = [...alumnos].sort(() => Math.random() - 0.5)
-    setAlumnos(mezclados) // Esto dispara el useEffect de sincronización de arriba
+    setAlumnos(mezclados) 
   }
 
-  // --- NUEVA FUNCIÓN DEL CANDADO ---
+  // --- FUNCIÓN DEL CANDADO CON ACOMODO EQUITATIVO AUTOMÁTICO ---
   const manejarCandado = async () => {
     const token = localStorage.getItem('token')
     const nuevoEstado = !bloqueada
     
     try {
-      const res = await axios.post('http://192.168.0.103:3000/api/bloquear-sala', {
+      const res = await axios.post('http://192.168.50.156:3000/api/bloquear-sala', {
         codigo_sala: codigoSala,
         token_docente: token,
         estado_bloqueo: nuevoEstado
@@ -161,6 +160,47 @@ export default function Docente() {
       
       if (res.data.exito) {
         setBloqueada(nuevoEstado)
+
+        // 🔥 LA MAGIA AUTOMÁTICA AL CERRAR LA SALA 🔥
+        if (nuevoEstado === true && alumnos.length > 0) {
+          const total = alumnos.length
+          const maxPorEquipo = Number(tamanioEquipo)
+          
+          // 1. Calculamos cuántos equipos saldrán idealmente basándonos en el tamaño elegido
+          const numEquipos = Math.ceil(total / maxPorEquipo)
+          
+          // 2. Obtenemos el tamaño mínimo base por equipo y el residuo sobrante
+          const baseSize = Math.floor(total / numEquipos)
+          const residuo = total % numEquipos
+          
+          const nuevosEquipos = Array.from({ length: numEquipos }, () => [])
+          let alumnoIdx = 0
+          
+          // 3. Repartimos los alumnos equitativamente (Variación máxima de 1 integrante)
+          for (let i = 0; i < numEquipos; i++) {
+            // Si el índice del equipo es menor al residuo, le toca 1 integrante extra
+            const sizeEsteEquipo = baseSize + (i < residuo ? 1 : 0)
+            nuevosEquipos[i] = alumnos.slice(alumnoIdx, alumnoIdx + sizeEsteEquipo)
+            alumnoIdx += sizeEsteEquipo
+          }
+          
+          // 4. Actualizamos el estado local
+          setEquipos(nuevosEquipos)
+          
+          // 5. Forzamos la emisión por sockets y el guardado en la Base de Datos de inmediato
+          socket.emit('equipos_generados', { 
+            sala: codigoSala, 
+            mensaje: 'Sala cerrada - Equipos balanceados 🔒', 
+            equipos: nuevosEquipos,
+            alumnos: alumnos 
+          })
+          
+          await axios.post('http://192.168.50.156:3000/api/guardar-equipos', {
+            codigo_sala: codigoSala,
+            token_docente: token,
+            equipos_json: JSON.stringify(nuevosEquipos)
+          })
+        }
       } else {
         alert(res.data.mensaje)
       }
@@ -172,7 +212,7 @@ export default function Docente() {
   const manejarEliminarSala = async (codigo) => {
     if (!window.confirm(`¿Eliminar la sala ${codigo}?`)) return
     const token = localStorage.getItem('token')
-    const res = await axios.post('http://192.168.0.103:3000/api/eliminar-sala', { codigo_sala: codigo, token_docente: token })
+    const res = await axios.post('http://192.168.50.156:3000/api/eliminar-sala', { codigo_sala: codigo, token_docente: token })
     if (res.data.exito) setMisSalas(misSalas.filter(s => s.codigo_sala !== codigo))
     else alert(res.data.mensaje)
   }
@@ -239,17 +279,31 @@ export default function Docente() {
               <div style={{ ...s.panel, marginBottom: '12px' }}>
                 <p style={s.panelTitle}>Configuración</p>
                 <div style={s.cfgLabel}>Tamaño de equipos</div>
-                <input style={s.cfgInput} type="number" min="1" value={tamanioEquipo} onChange={e => setTamanioEquipo(e.target.value)} />
                 
-                {/* BOTÓN ALEATORIO CON MARGEN */}
-                <button onClick={generarAleatorios} style={{...s.btnRandom, marginBottom: '8px'}}>🔀 Aleatorio</button>
+                {/* 🔥 MEJORA DE UX: Deshabilitamos el input si la sala está cerrada */}
+                <input 
+                  style={s.cfgInput} 
+                  type="number" 
+                  min="1" 
+                  value={tamanioEquipo} 
+                  onChange={e => setTamanioEquipo(e.target.value)} 
+                  disabled={bloqueada}
+                />
                 
-                {/* 👇 NUEVO BOTÓN DEL CANDADO 👇 */}
+                {/* 🔥 MEJORA DE UX: Deshabilitamos el botón aleatorio si la sala está cerrada */}
+                <button 
+                  onClick={generarAleatorios} 
+                  style={{...s.btnRandom, marginBottom: '8px'}}
+                  disabled={bloqueada}
+                >
+                  {bloqueada ? '🔒 Sala cerrada' : '🔀 Aleatorio'}
+                </button>
+                
                 <button 
                   onClick={manejarCandado} 
                   style={{
                     ...s.btnRandom, 
-                    background: bloqueada ? '#c0392b' : '#f39c12', // Rojo si está cerrada, Naranja si está abierta
+                    background: bloqueada ? '#c0392b' : '#f39c12', 
                     color: 'white'
                   }}
                 >

@@ -40,13 +40,13 @@ export default function Registro() {
     e.preventDefault()
     setError(''); setMensaje('')
     try {
-      const resRegistro = await axios.post('http://192.168.0.103:3000/api/registro', {
+      const resRegistro = await axios.post('http://192.168.50.156:3000/api/registro', {
         nombre, correo, password, rol,
         codigo_secreto: rol === 'docente' ? codigoSecreto : undefined
       })
       if (resRegistro.data.exito) {
         setMensaje('✅ ¡Cuenta creada! Iniciando sesión...')
-        const resLogin = await axios.post('http://192.168.0.103:3000/api/login', { correo, password })
+        const resLogin = await axios.post('http://192.168.50.156:3000/api/login', { correo, password })
         if (resLogin.data.exito) {
           localStorage.setItem('token', resLogin.data.token)
           const dec = jwtDecode(resLogin.data.token)

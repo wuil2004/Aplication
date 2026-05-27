@@ -5,7 +5,7 @@ import axios from 'axios'
 import { io } from 'socket.io-client'
 import { jwtDecode } from 'jwt-decode'
 
-const socket = io('http://192.168.0.103:3000', { autoConnect: false })
+const socket = io('http://192.168.50.156:3000', { autoConnect: false })
 
 const color = {
   purple: '#534AB7', purpleLight: '#EEEDFE', purpleMid: '#AFA9EC',
@@ -89,7 +89,7 @@ export default function Alumno() {
 
   const cargarMisSalas = async (token) => {
     try {
-      const res = await axios.post('http://192.168.0.103:3000/api/mis-salas-alumno', { token_alumno: token })
+      const res = await axios.post('http://192.168.50.156:3000/api/mis-salas-alumno', { token_alumno: token })
       if (res.data.exito) setMisSalas(res.data.salas || [])
     } catch (e) { console.error(e) }
   }
@@ -129,7 +129,7 @@ export default function Alumno() {
     socket.emit('conectar_a_sala', salaAUnirse)
 
     try {
-      const res = await axios.post('http://192.168.0.103:3000/api/unirse-sala', {
+      const res = await axios.post('http://192.168.50.156:3000/api/unirse-sala', {
         codigo_sala: salaAUnirse,
         token_alumno: token
       })
